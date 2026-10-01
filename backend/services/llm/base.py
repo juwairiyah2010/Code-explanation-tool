@@ -26,6 +26,8 @@ class BaseLLMService(ABC):
         level: str,
         ast_context: str | None = None,
         required_blocks: list | None = None,
+        rag_context: str | None = None,
+        rag_citations: list | None = None,
     ) -> LLMExplanationResult:
         """Generate structured explanation from code and context."""
         pass

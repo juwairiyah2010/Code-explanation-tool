@@ -65,16 +65,69 @@ class ExplanationService:
             detection = detect_language(request.code, filename=request.filename, explicit_language=request.language)
             resolved_lang = detection.language if detection.language != "unknown" else "python"
 
-                # 2. Hybrid LLM explanation generation
+        # 1.5 RAG Semantic Knowledge Retrieval
+        rag_context: str | None = None
+        rag_sources: list[RAGSourceCitation] = []
+        rag_context_used: bool = False
+
+        if request.enable_rag and self.db is not None:
+            from backend.services.rag.retriever import RAGRetriever
+            retriever = RAGRetriever(self.db)
+
+            # Build search query from AST features and code snippet
+            query_parts = []
+            if ast_result:
+                func_names = [f.name for f in ast_result.constructs.functions]
+                class_names = [c.name for c in ast_result.constructs.classes]
+                if func_names:
+                    query_parts.append(f"functions: {', '.join(func_names)}")
+                if class_names:
+                    query_parts.append(f"classes: {', '.join(class_names)}")
+                if ast_result.constructs.loops:
+                    query_parts.append("loops iteration traversal")
+                if ast_result.constructs.conditions:
+                    query_parts.append("conditional branching")
+            
+            code_head = " ".join([line.strip() for line in request.code.splitlines() if line.strip()][:3])
+            query = f"{' '.join(query_parts)} {code_head}".strip() or request.code[:200]
+
+            rag_res = retriever.retrieve(
+                query=query,
+                language=resolved_lang,
+                top_k=3,
+                similarity_threshold=0.35,
+            )
+
+            if rag_res.results:
+                rag_sources = rag_res.results
+                rag_context_used = True
+                rag_context = "\n\n".join(
+                    f"[{c.title}] (Source: {c.source})\n{c.snippet}" for c in rag_sources
+                )
+                logger.info(f"Retrieved {len(rag_sources)} RAG knowledge chunks for explanation grounding.")
+            else:
+                logger.info("RAG context was insufficient for code snippet.")
+
+
+        # 2. Hybrid LLM explanation generation
+        import inspect
+        sig = inspect.signature(self.llm.generate_explanation)
+        accepts_rag = "rag_context" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+
         required_blocks = ast_result.blocks if ast_result and ast_result.blocks else []
         
-        llm_output = await self.llm.generate_explanation(
-            code=request.code,
-            language=resolved_lang,
-            level=request.level,
-            ast_context=ast_summary_context,
-            required_blocks=required_blocks,
-        )
+        llm_kwargs = {
+            "code": request.code,
+            "language": resolved_lang,
+            "level": request.level,
+            "ast_context": ast_summary_context,
+            "required_blocks": required_blocks,
+        }
+        if accepts_rag:
+            llm_kwargs["rag_context"] = rag_context
+            llm_kwargs["rag_citations"] = rag_sources
+
+        llm_output = await self.llm.generate_explanation(**llm_kwargs)
 
         # 2.5 Coverage Validator & Retry Logic
         max_lines = len(request.code.splitlines())
@@ -98,13 +151,18 @@ class ExplanationService:
             
             while missing_blocks and retry_count < max_retries:
                 logger.warning(f"Missing explanations for {len(missing_blocks)} blocks. Retrying...")
-                retry_output = await self.llm.generate_explanation(
-                    code=request.code,
-                    language=resolved_lang,
-                    level=request.level,
-                    ast_context=ast_summary_context,
-                    required_blocks=missing_blocks,
-                )
+                retry_kwargs = {
+                    "code": request.code,
+                    "language": resolved_lang,
+                    "level": request.level,
+                    "ast_context": ast_summary_context,
+                    "required_blocks": missing_blocks,
+                }
+                if accepts_rag:
+                    retry_kwargs["rag_context"] = rag_context
+                    retry_kwargs["rag_citations"] = rag_sources
+
+                retry_output = await self.llm.generate_explanation(**retry_kwargs)
                 
                 new_blocks = validate_blocks(retry_output.blocks)
                 validated_blocks.extend(new_blocks)
@@ -112,6 +170,7 @@ class ExplanationService:
                 covered_titles = {b.title for b in validated_blocks}
                 missing_blocks = [rb for rb in required_blocks if rb.title not in covered_titles]
                 retry_count += 1
+
                 
             if missing_blocks:
                 llm_output.hints.append(f"Warning: Could not generate explanations for some blocks: {', '.join(b.title for b in missing_blocks)}")
@@ -161,5 +220,7 @@ class ExplanationService:
             complexity=llm_output.complexity,
             hints=llm_output.hints,
             ast_analysis=ast_result,
+            rag_sources=rag_sources,
+            rag_context_used=rag_context_used,
             created_at=created_at,
         )

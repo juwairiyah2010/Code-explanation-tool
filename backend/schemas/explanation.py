@@ -161,12 +161,16 @@ class CodeAnalysisResponse(BaseModel):
     imports: list[str] = Field(default_factory=list)
 
 
+from backend.schemas.rag import RAGSourceCitation
+
+
 class ExplainCodeRequest(BaseModel):
     code: str = Field(..., min_length=1, max_length=50000, description="Code snippet to explain")
     language: LanguageType = Field("python", description="Programming language")
     filename: str | None = Field(None, description="Optional filename")
     level: ExplanationLevelType = Field("Beginner", description="Desired level of explanation")
     include_ast_analysis: bool = Field(True, description="Whether to include AST parsing metadata")
+    enable_rag: bool = Field(True, description="Whether to retrieve and ground explanation on RAG knowledge base")
     save_history: bool = Field(True, description="Whether to persist the explanation in SQLite")
 
     @field_validator("code")
@@ -188,7 +192,10 @@ class ExplainCodeResponse(BaseModel):
     complexity: AlgorithmComplexity = Field(..., description="Complexity estimates")
     hints: list[str] = Field(default_factory=list, description="Common mistakes and improvement hints")
     ast_analysis: CodeAnalysisResponse | None = None
+    rag_sources: list[RAGSourceCitation] = Field(default_factory=list, description="Retrieved RAG knowledge citations and references")
+    rag_context_used: bool = Field(False, description="Whether RAG knowledge was retrieved and used in the explanation")
     created_at: datetime | None = None
+
 
 
 class ExplanationHistoryItem(BaseModel):

@@ -17,9 +17,35 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup and shutdown events."""
     logger.info("Initializing SQLite database tables...")
     init_db()
+
+    # Verify or initialize RAG knowledge base
+    try:
+        from pathlib import Path
+        from backend.core.database import SessionLocal
+        from backend.repositories.rag_repo import RAGRepository
+        from backend.services.rag.ingestion import KnowledgeIngestionPipeline
+
+        db = SessionLocal()
+        try:
+            repo = RAGRepository(db)
+            stats = repo.get_stats()
+            if stats["chunks"] == 0:
+                logger.info("Knowledge base is empty. Triggering initial ingestion...")
+                pipeline = KnowledgeIngestionPipeline(db)
+                kb_path = Path("data/knowledge_base")
+                if kb_path.exists():
+                    pipeline.ingest_directory(kb_path)
+            else:
+                logger.info(f"Knowledge base ready: {stats['documents']} documents, {stats['chunks']} chunks.")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"Knowledge base auto-ingestion skipped: {e}")
+
     logger.info(f"Starting {settings.APP_NAME} in [{settings.ENVIRONMENT}] mode.")
     yield
     logger.info("Shutting down application...")
+
 
 
 def create_app() -> FastAPI:

@@ -6,41 +6,61 @@ A modular, extensible platform combining **AST-based static code analysis** and 
 
 ## 🌟 Features
 - **Modular Architecture**: Layered separation across Routers, Services, Schemas, Repositories, and AI Prompts.
+- **Retrieval-Augmented Generation (RAG)**:
+  - Curated, permitted reference documentation (Python, JavaScript, Common Errors, Big-O Complexity, Programming Concepts).
+  - FastEmbed ONNX local dense embeddings (384-dimensional) with zero external API dependencies.
+  - Cosine vector similarity search directly against SQLite chunks with numpy acceleration.
+  - Authentic source citations and strict prompt-injection defense safeguards.
 - **Multi-Language AST Analysis**:
   - **Python**: Standard library `ast` visitor for functions, classes, imports, and cyclomatic complexity.
   - **JavaScript**: Tree-sitter AST parser with grammar traversal and fallback analysis.
-- **Multi-Style AI Explanations**: Standard, Beginner, Deep Technical Teardown, Line-by-Line, and Security Focus.
+- **Interactive Step-by-Step Tracer**: Variable state inspection, runtime step playback, and Mermaid control-flow diagrams.
+- **Multi-Lingual Quiz Generator**: Generates 3-question targeted quizzes in English or Hindi with answer validation.
 - **FastAPI REST Backend**: Automatic OpenAPI Swagger documentation, dependency injection, and health monitoring.
-- **Streamlit Interactive UI**: Real-time code explanation, AST visualizer, and SQLite history explorer.
-- **SQLite Database**: Persists explanation history and AST metadata via SQLAlchemy repository pattern.
-- **Full Test Coverage**: In-memory SQLite fixtures and Pytest test suite.
+- **Streamlit Interactive UI**: Real-time code explanation, AST visualizer, vector knowledge base search, and SQLite history explorer.
+- **SQLite Database**: Persists explanation history, AST metadata, and knowledge base vector embeddings.
+- **Full Test Coverage**: 52 passed Pytest tests covering AST parsing, tracing, quizzes, persistence, and RAG.
 
 ---
 
 ## 📁 Project Structure
 ```
 ├── backend/
-│   ├── api/v1/endpoints/       # Health, AST analysis, and explanation routes
+│   ├── api/v1/endpoints/       # Health, AST analysis, explanation, trace, quiz, history, rag
 │   ├── core/                   # SQLite engine, sessions, and logging
-│   ├── models/                 # SQLAlchemy ORM models
-│   ├── repositories/           # Database CRUD abstraction
+│   ├── models/                 # SQLAlchemy ORM models (Submissions, Explanations, Knowledge)
+│   ├── repositories/           # Database CRUD abstraction & RAG repository
 │   ├── schemas/                # Pydantic validation schemas
 │   ├── services/
 │   │   ├── llm/                # LLM service & prompt templates
-│   │   └── parsers/            # Python AST & Tree-sitter JS parsers
+│   │   ├── parsers/            # Python AST & Tree-sitter JS parsers
+│   │   └── rag/                # RAG embeddings, vector retriever, and ingestion pipeline
 │   ├── config.py               # Settings & environment variables
 │   └── main.py                 # FastAPI application
 ├── frontend/
 │   ├── components/             # Sidebar and UI widgets
 │   ├── utils/                  # HTTP API client
 │   └── app.py                  # Streamlit application
-├── data/                       # Local SQLite database files
+├── data/
+│   ├── knowledge_base/         # Curated programming markdown documentation
+│   └── app.db                  # Local SQLite database files
 ├── docs/                       # Architecture & API specifications
-├── tests/                      # Pytest test suite
+├── tests/                      # Pytest test suite (52 tests)
 ├── .env.example                # Sample environment variables
 ├── requirements.txt            # Python dependencies
 └── README.md
 ```
+
+---
+
+## 📚 Knowledge Base Ingestion
+
+To populate or re-index the RAG vector knowledge base from markdown documents in `data/knowledge_base/`:
+```bash
+python -m backend.services.rag.ingestion
+```
+The FastAPI backend also automatically verifies and seeds the knowledge base on startup if empty.
+
 
 ---
 

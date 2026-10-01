@@ -12,6 +12,8 @@ class MockLLMService(BaseLLMService):
         level: str,
         ast_context: str | None = None,
         required_blocks: list | None = None,
+        rag_context: str | None = None,
+        rag_citations: list | None = None,
     ) -> LLMExplanationResult:
         from backend.schemas.explanation import AlgorithmComplexity, BlockExplanation, ConceptTag
         lang_title = language.capitalize()
@@ -22,9 +24,6 @@ class MockLLMService(BaseLLMService):
         if required_blocks:
             blocks = []
             for rb in required_blocks:
-                # Add all except the last one to simulate a missing block occasionally for testing
-                # Actually, let's just return all of them to pass normally, 
-                # but we can test missing blocks via tests.
                 blocks.append(
                     BlockExplanation(
                         title=rb.title,
@@ -55,6 +54,21 @@ class MockLLMService(BaseLLMService):
                 definition="Containers for storing data values."
             )
         ]
+
+        hints = [
+            "Consider using more descriptive variable names.",
+            "Add type hints if applicable."
+        ]
+
+        if rag_citations:
+            for cite in rag_citations:
+                concepts.append(
+                    ConceptTag(
+                        concept=cite.title,
+                        definition=f"Grounded from {cite.source}: {cite.snippet[:90]}..."
+                    )
+                )
+                hints.append(f"Grounded recommendation based on [{cite.title}] ({cite.source}).")
         
         algorithm_steps = [
             "Initialize variables.",
@@ -68,11 +82,6 @@ class MockLLMService(BaseLLMService):
             explanation="Linear time scan with in-place operations."
         )
         
-        hints = [
-            "Consider using more descriptive variable names.",
-            "Add type hints if applicable."
-        ]
-        
         return LLMExplanationResult(
             summary=summary,
             blocks=blocks,
@@ -81,6 +90,7 @@ class MockLLMService(BaseLLMService):
             complexity=complexity,
             hints=hints,
         )
+
 
 
     async def generate_quiz(

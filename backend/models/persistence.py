@@ -69,3 +69,34 @@ class QuizItem(Base):
     line_reference = Column(String(50), nullable=True)
 
     submission = relationship("Submission", back_populates="quiz_items")
+
+class KnowledgeDocument(Base):
+    __tablename__ = "knowledge_documents"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    doc_id = Column(String(100), unique=True, index=True, nullable=False)
+    title = Column(String(255), nullable=False)
+    source = Column(String(255), nullable=False)
+    language = Column(String(50), index=True, nullable=False)
+    topic = Column(String(100), index=True, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    chunks = relationship("KnowledgeChunk", back_populates="document", cascade="all, delete-orphan")
+
+class KnowledgeChunk(Base):
+    __tablename__ = "knowledge_chunks"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    document_id = Column(Integer, ForeignKey("knowledge_documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    chunk_id = Column(String(150), unique=True, index=True, nullable=False)
+    title = Column(String(255), nullable=False)
+    source = Column(String(255), nullable=False)
+    language = Column(String(50), index=True, nullable=False)
+    topic = Column(String(100), index=True, nullable=False)
+    content = Column(Text, nullable=False)
+    token_count = Column(Integer, default=0, nullable=False)
+    embedding = Column(Text, nullable=False)  # JSON-encoded float array
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    document = relationship("KnowledgeDocument", back_populates="chunks")
+

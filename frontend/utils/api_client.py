@@ -45,6 +45,7 @@ class APIClient:
         language: str = "auto",
         level: str = "Beginner",
         include_ast: bool = True,
+        enable_rag: bool = True,
         save_history: bool = True,
         filename: str | None = None,
     ) -> dict[str, Any]:
@@ -54,6 +55,7 @@ class APIClient:
                 "language": language,
                 "level": level,
                 "include_ast_analysis": include_ast,
+                "enable_rag": enable_rag,
                 "save_history": save_history,
             }
             if filename:
@@ -133,3 +135,37 @@ class APIClient:
         except Exception:
             return []
         return []
+
+    # ── RAG Knowledge Base ───────────────────────────────────────────
+    def search_rag(
+        self,
+        query: str,
+        language: str = "auto",
+        top_k: int = 3,
+        similarity_threshold: float = 0.35,
+    ) -> dict[str, Any] | None:
+        try:
+            with httpx.Client(timeout=self.timeout) as c:
+                payload = {
+                    "query": query,
+                    "language": language,
+                    "top_k": top_k,
+                    "similarity_threshold": similarity_threshold,
+                }
+                res = c.post(f"{self.base_url}/rag/retrieve", json=payload)
+                if res.status_code == 200:
+                    return res.json()
+        except Exception:
+            return None
+        return None
+
+    def get_rag_stats(self) -> dict[str, int]:
+        try:
+            with httpx.Client(timeout=self.timeout) as c:
+                res = c.get(f"{self.base_url}/rag/stats")
+                if res.status_code == 200:
+                    return res.json()
+        except Exception:
+            return {"documents": 0, "chunks": 0}
+        return {"documents": 0, "chunks": 0}
+

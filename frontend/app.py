@@ -214,7 +214,12 @@ with st.sidebar:
     )
 
     include_ast = st.toggle("Include AST Analysis", value=True)
+    enable_rag = st.toggle("Enable RAG Grounding", value=True, help="Retrieve verified documentation to ground explanations")
     save_history = st.toggle("Save to History", value=True)
+
+    rag_stats = client.get_rag_stats()
+    if rag_stats.get("chunks", 0) > 0:
+        st.caption(f"📚 Knowledge Base: {rag_stats['documents']} docs · {rag_stats['chunks']} vector chunks")
 
     st.divider()
     st.markdown("#### 🧭 Navigation")
@@ -285,6 +290,7 @@ if page == "📝 Code Input":
                         language=language,
                         level=level,
                         include_ast=include_ast,
+                        enable_rag=enable_rag,
                         save_history=save_history,
                     )
                     st.session_state["explanation_result"] = result
@@ -369,6 +375,21 @@ elif page == "📖 Explanation":
                     st.warning(f"{icon} **[{h['rule_id']}]** Line {h['line_start']}: {h['message']}\n\n💡 *{h.get('suggestion', '')}*")
 
         st.divider()
+
+        # ── RAG Grounded Sources & Citations ─────────────────────
+        rag_sources = result.get("rag_sources", [])
+        if rag_sources:
+            st.markdown("### 📚 Grounded Knowledge & Source Citations")
+            st.caption("This explanation is verified and grounded against curated programming reference documentation:")
+            for cite in rag_sources:
+                score_pct = int(cite.get("similarity_score", 0.0) * 100)
+                with st.expander(f"📖 **{cite['title']}** — *{cite['source']}* ({score_pct}% match)", expanded=True):
+                    st.markdown(f"> {cite['snippet']}")
+                    st.caption(f"Topic: `{cite.get('topic')}` | Chunk ID: `{cite.get('chunk_id')}` | Relevance: `{score_pct}%`")
+            st.divider()
+        elif result.get("rag_context_used") is False:
+            st.caption("ℹ️ *Note: Curated reference documentation had no high-confidence match for this specific snippet; explanation was synthesized using core programming heuristics.*")
+            st.divider()
 
         # ── Block-by-Block Explanations ──────────────────────────
         st.markdown("### 🧩 Block-by-Block Explanations")
@@ -455,26 +476,23 @@ elif page == "📚 Concepts":
         st.info("No concepts loaded yet. Run an explanation first from **📝 Code Input**.")
 
     st.divider()
-    st.markdown("#### 🌐 Search saved concepts from database")
-    db_search = st.text_input("Concept name to look up:", key="db_concept_search")
-    if db_search.strip():
+    st.markdown("#### 🔬 Semantic Search in Vector Knowledge Base")
+    rag_query = st.text_input("Semantic search across all documentation chunks:", placeholder="e.g. How do JavaScript closures work? Or Big-O time complexity", key="rag_search_input")
+    if rag_query.strip():
         if not health:
             st.error("🔴 Backend offline.")
         else:
-            with st.spinner("Searching…"):
-                db_concepts = client.get_concepts(db_search.strip())
-            if isinstance(db_concepts, list) and db_concepts:
-                for item in db_concepts:
-                    st.markdown(f"- **{item.get('name', '')}** (Submission #{item.get('submission_id', '?')}): {item.get('definition', '')}")
-            elif isinstance(db_concepts, dict):
-                items = db_concepts.get("items", [])
-                if items:
-                    for item in items:
-                        st.markdown(f"- **{item.get('name', '')}** (Submission #{item.get('submission_id', '?')}): {item.get('definition', '')}")
-                else:
-                    st.info(f'No saved concepts named "{db_search}" found.')
+            with st.spinner("Searching vector index…"):
+                search_res = client.search_rag(rag_query.strip(), language=language)
+            if search_res and search_res.get("results"):
+                st.markdown(f"Found **{len(search_res['results'])}** relevant reference chunks:")
+                for r in search_res["results"]:
+                    pct = int(r.get("similarity_score", 0.0) * 100)
+                    with st.expander(f"📖 **{r['title']}** ({pct}% similarity)"):
+                        st.markdown(f"**Source:** *{r['source']}* · Language: `{r['language']}` · Topic: `{r['topic']}`")
+                        st.markdown(r["snippet"])
             else:
-                st.info(f'No saved concepts named "{db_search}" found.')
+                st.info("No relevant chunks matched the query above the similarity threshold.")
 
 
 # ════════════════════════════════════════════════════════════════════
