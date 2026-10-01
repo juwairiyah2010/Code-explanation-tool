@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Lore - AI Code Understander</title>
+    <!-- Google Font for sticky note -->
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <a href="/" class="nav-brand">
+            <div class="nav-brand-icon">
+                <div></div><div></div>
+                <div></div><div></div>
+            </div>
+            CodeLore
+        </a>
+        
+        <div class="nav-links">
+            <a href="#">Features</a>
+            <a href="#">Solutions</a>
+            <a href="#">Resources</a>
+            <a href="#">Pricing</a>
+        </div>
+        
+        <div class="nav-actions">
+            {% if session.get('user_id') %}
+            <a href="{{ url_for('profile') }}">Profile</a>
+            <a href="{{ url_for('app_view') }}" class="btn-demo">Go to App</a>
+            {% else %}
+            <a href="{{ url_for('login') }}">Sign in</a>
+            <a href="{{ url_for('app_view') }}" class="btn-demo">Get demo</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Floating Background Elements -->
+    <div class="floating-elements">
+        <!-- Top Left: Sticky Note -->
+        <div class="glass-card sticky-note">
+            <div class="pin"></div>
+            Understand undocumented code, trace execution, and learn new languages instantly.
+        </div>
+
+        <!-- Checkbox Icon -->
+        <div class="glass-card check-icon">
+            <div class="check-box"></div>
+        </div>
+
+        <!-- Bottom Left: Tasks Card -->
+        <div class="glass-card tasks-card">
+            <h3>Today's analysis</h3>
+            
+            <div class="task-item">
+                <div class="task-header">
+                    <span><span class="task-tag">Py</span> Auth Middleware</span>
+                    <span style="font-size: 0.7rem; color: #666;">60%</span>
+                </div>
+                <span style="font-size: 0.7rem; color: #999;">Lines 1-45</span>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+            
+            <div class="task-item">
+                <div class="task-header">
+                    <span><span class="task-tag green">JS</span> Search algorithm</span>
+                    <span style="font-size: 0.7rem; color: #666;">112%</span>
+                </div>
+                <span style="font-size: 0.7rem; color: #999;">AST & Trace</span>
+                <div class="progress-bar">
+                    <div class="progress-fill red"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Right: Reminders -->
+        <div class="glass-card reminders-card">
+            <h3>AST Metrics</h3>
+            <div style="font-size: 0.7rem; color: #999; text-align: right;">Complexity</div>
+            
+            <div class="rem-item">
+                <div class="rem-title">Code complexity high</div>
+                <div class="rem-sub">Consider refactoring</div>
+                <div class="rem-time">Score: 42</div>
+            </div>
+        </div>
+
+        <!-- Clock Icon -->
+        <div class="glass-card clock-icon">
+            <div class="clock-face"></div>
+        </div>
+
+        <!-- Bottom Right: Integrations -->
+        <div class="glass-card integrations-card">
+            <h3>100+ Languages Supported</h3>
+            <div class="int-icons">
+                <div class="int-icon" style="color: #3b82f6;">Py</div>
+                <div class="int-icon" style="color: #eab308;">JS</div>
+                <div class="int-icon" style="color: #ef4444;">C++</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Hero -->
+    <main class="hero">
+        <div class="hero-icon">
+            <div class="hero-icon-grid">
+                <div></div><div></div>
+                <div></div><div></div>
+            </div>
+        </div>
+        
+        <h1>
+            Think, plan, and code<br>
+            <span class="text-muted">all in one place</span>
+        </h1>
+        
+        <p>Efficiently understand your codebase and boost productivity.</p>
+        
+        <a href="{{ url_for('app_view') }}" class="btn-primary">Get free demo</a>
+    </main>
+
+</body>
+</html>

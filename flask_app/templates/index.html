@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">📝 Code Input</h2>
+<p class="text-secondary">Paste your code below, choose a language and explanation level, then click <strong>Analyze</strong>.</p>
+
+<div class="row">
+    <div class="col-md-7">
+        <form method="POST" action="{{ url_for('app_view') }}" class="card bg-dark border-secondary p-3">
+            <div class="mb-3">
+                <label class="form-label text-light">Language</label>
+                <select name="language" class="form-select bg-dark text-light border-secondary">
+                    <option value="auto" {% if language == 'auto' %}selected{% endif %}>Auto-detect</option>
+                    <option value="python" {% if language == 'python' %}selected{% endif %}>Python</option>
+                    <option value="javascript" {% if language == 'javascript' %}selected{% endif %}>JavaScript</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label text-light">Explanation Level</label>
+                <select name="level" class="form-select bg-dark text-light border-secondary">
+                    <option value="Absolute Beginner">Absolute Beginner</option>
+                    <option value="Beginner" selected>Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-light">Code Editor</label>
+                <textarea name="code" class="form-control bg-dark text-light border-secondary font-monospace" rows="12" placeholder="Paste your code here...">{{ code }}</textarea>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" name="action" value="analyze" class="btn btn-primary flex-grow-1">✨ Analyze & Explain</button>
+                <button type="submit" name="action" value="ast" class="btn btn-outline-secondary">🔍 AST Only</button>
+                <button type="submit" name="action" value="trace" class="btn btn-outline-secondary">🔬 Trace Code</button>
+            </div>
+        </form>
+    </div>
+    <div class="col-md-5">
+        <div class="card bg-dark border-secondary h-100">
+            <div class="card-header border-secondary text-secondary">
+                Preview
+            </div>
+            <div class="card-body p-0 overflow-auto">
+                <pre><code class="language-{{ language if language != 'auto' else 'python' }}">{{ code }}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">📚 Concepts Glossary</h2>
+
+<form method="POST" action="{{ url_for('concepts') }}" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="search" value="{{ search }}" class="form-control bg-dark text-light border-secondary" placeholder="Search concepts (e.g. Variables, Loops)...">
+        <button type="submit" class="btn btn-outline-primary">🔍 Search</button>
+    </div>
+</form>
+
+{% if concepts %}
+<div class="accordion bg-dark" id="conceptsAccordion">
+    {% for c in concepts %}
+    <div class="accordion-item bg-dark border-secondary text-light">
+        <h2 class="accordion-header" id="headingC{{ loop.index }}">
+            <button class="accordion-button collapsed bg-dark text-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapseC{{ loop.index }}">
+                {{ c.concept }}
+            </button>
+        </h2>
+        <div id="collapseC{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#conceptsAccordion">
+            <div class="accordion-body">
+                {{ c.definition }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info bg-dark border-info text-info">
+    No concepts found.
+</div>
+{% endif %}
+
+<hr class="border-secondary my-5">
+
+<h4 class="mb-3">🔬 Semantic Search in Vector Knowledge Base</h4>
+<form method="POST" action="{{ url_for('concepts') }}" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="rag_query" value="{{ rag_query }}" class="form-control bg-dark text-light border-secondary" placeholder="e.g. How do JavaScript closures work?">
+        <button type="submit" class="btn btn-outline-primary">Search Docs</button>
+    </div>
+</form>
+
+{% if search_res and search_res.results %}
+<h5 class="mb-3">Found {{ search_res.results | length }} relevant reference chunks:</h5>
+<div class="accordion bg-dark" id="ragAccordion">
+    {% for r in search_res.results %}
+    <div class="accordion-item bg-dark border-secondary text-light">
+        <h2 class="accordion-header" id="headingR{{ loop.index }}">
+            <button class="accordion-button collapsed bg-dark text-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapseR{{ loop.index }}">
+                📖 {{ r.title }} ({{ (r.similarity_score * 100) | int }}% similarity)
+            </button>
+        </h2>
+        <div id="collapseR{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#ragAccordion">
+            <div class="accordion-body">
+                <p class="small text-muted mb-2"><strong>Source:</strong> <em>{{ r.source }}</em> &middot; Language: <code>{{ r.language }}</code> &middot; Topic: <code>{{ r.topic }}</code></p>
+                <p>{{ r.snippet }}</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% elif rag_query %}
+<div class="alert alert-info bg-dark border-info text-info">
+    No relevant chunks matched the query above the similarity threshold.
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">🔍 AST Analysis</h2>
+
+{% if ast_result %}
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-header border-secondary text-primary">
+        AST Metrics
+    </div>
+    <div class="card-body">
+        <ul>
+            <li><strong>Complexity Score:</strong> {{ ast_result.complexity_score }}</li>
+            <li><strong>Max Nesting Depth:</strong> {{ ast_result.max_nesting_depth }}</li>
+            <li><strong>Functions:</strong> {{ ast_result.metrics.num_functions if ast_result.metrics else 0 }}</li>
+            <li><strong>Classes:</strong> {{ ast_result.metrics.num_classes if ast_result.metrics else 0 }}</li>
+        </ul>
+    </div>
+</div>
+
+<h3 class="mb-3">📋 Raw AST JSON</h3>
+<div class="card bg-dark border-secondary">
+    <div class="card-body p-0 overflow-auto" style="max-height: 500px;">
+        <pre><code class="language-json">{{ ast_result | tojson(indent=2) }}</code></pre>
+    </div>
+</div>
+{% else %}
+<p class="text-muted">No AST data found.</p>
+{% endif %}
+{% endblock %}

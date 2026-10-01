@@ -1,0 +1,46 @@
+/* Custom Styles for Code Lore Flask */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+code, pre, .font-monospace {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+}
+
+.sidebar {
+    background-color: #0e1117 !important;
+}
+
+.nav-link {
+    border-radius: 6px;
+    margin-bottom: 4px;
+    transition: background-color 0.2s;
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+    background-color: rgba(13, 110, 253, 0.15);
+    font-weight: 600;
+}
+
+/* Scrollbar dark theme */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #161b22; 
+}
+::-webkit-scrollbar-thumb {
+    background: #30363d; 
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #58a6ff; 
+}

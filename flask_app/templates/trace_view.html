@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">🔬 Execution Trace & Flowchart</h2>
+
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-header border-secondary text-light">
+        ⚙️ Trace Settings
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('app_view') }}">
+            <input type="hidden" name="language" value="{{ session.get('current_language', 'python') }}">
+            <div class="mb-3">
+                <label class="form-label text-light">Code to trace:</label>
+                <textarea name="code" class="form-control bg-dark text-light border-secondary font-monospace" rows="6">{{ code }}</textarea>
+            </div>
+            <button type="submit" name="action" value="trace" class="btn btn-primary">▶️ Run Trace</button>
+        </form>
+    </div>
+</div>
+
+{% if trace_result %}
+    {% if trace_result.error %}
+    <div class="alert alert-danger bg-dark border-danger text-danger">
+        ⚠️ Trace error: {{ trace_result.error }}
+    </div>
+    {% endif %}
+
+    {% if trace_result.steps %}
+    <h3 class="mb-3">Execution Steps ({{ trace_result.steps | length }} total)</h3>
+    <div class="row">
+        <div class="col-md-8">
+            {% for step in trace_result.steps %}
+            <div class="border-start border-primary border-3 ps-3 mb-3">
+                <strong>Step {{ loop.index }}</strong> · Line {{ step.line_number }}<br>
+                <code>{{ step.executed_code }}</code>
+                {% if step.output %}
+                <br><span class="text-success">📤 {{ step.output }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="col-md-4">
+            <h4 class="mb-3">Variable States</h4>
+            {% set last_step = trace_result.steps | last %}
+            {% if last_step.variables %}
+            <ul class="list-group bg-dark">
+                {% for k, v in last_step.variables.items() %}
+                <li class="list-group-item bg-dark text-light border-secondary">
+                    <strong><code>{{ k }}</code></strong> = <code>{{ v }}</code>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted">No variables captured.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted">No execution steps recorded.</p>
+    {% endif %}
+
+    {% if trace_result.flowchart %}
+    <hr class="border-secondary my-4">
+    <h3 class="mb-3">📊 Control Flow Diagram</h3>
+    <div class="mermaid bg-dark p-3 border border-secondary rounded">
+        {{ trace_result.flowchart }}
+    </div>
+    {% endif %}
+{% endif %}
+
+{% endblock %}

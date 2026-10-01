@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">🧩 Code Quiz</h2>
+
+{% if not code %}
+<div class="alert alert-info bg-dark border-info text-info">
+    No code loaded. Go to <strong>📝 Code Input</strong> first and analyze some code.
+</div>
+{% else %}
+
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-header border-secondary text-light">
+        Code being quizzed
+    </div>
+    <div class="card-body p-0 overflow-auto" style="max-height: 250px;">
+        <pre class="mb-0"><code class="language-{{ session.get('current_language', 'python') }}">{{ code }}</code></pre>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('quiz') }}" class="mb-4">
+    <button type="submit" name="action" value="generate" class="btn btn-primary">🎲 Generate Quiz</button>
+</form>
+
+{% if quiz_result and quiz_result.questions %}
+<hr class="border-secondary my-4">
+<h3 class="mb-3">📝 {{ quiz_result.questions | length }} Questions</h3>
+
+<form method="POST" action="{{ url_for('quiz') }}">
+    {% for q in quiz_result.questions %}
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-body">
+            <h5 class="card-title text-light"><strong>Q{{ loop.index }}.</strong> {{ q.text }}</h5>
+            {% if q.line_reference %}
+            <p class="text-muted small">📍 Refers to line(s): {{ q.line_reference }}</p>
+            {% endif %}
+
+            <div class="mt-3">
+                {% for opt in q.options %}
+                    {% if not submitted %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="q_{{ q.id }}" id="opt_{{ q.id }}_{{ opt.id }}" value="{{ opt.id }}" {% if answers.get(q.id) == opt.id %}checked{% endif %}>
+                        <label class="form-check-label text-light" for="opt_{{ q.id }}_{{ opt.id }}">
+                            {{ opt.id | upper }}) {{ opt.text }}
+                        </label>
+                    </div>
+                    {% else %}
+                        {% set is_correct = opt.id == q.correct_option_id %}
+                        {% set is_selected = opt.id == answers.get(q.id) %}
+                        
+                        <div class="p-2 mb-2 rounded {% if is_correct %}bg-success bg-opacity-25 border border-success{% elif is_selected %}bg-danger bg-opacity-25 border border-danger{% endif %}">
+                            {% if is_correct %}✅{% elif is_selected %}❌~~{% else %}⬜{% endif %}
+                            {{ opt.id | upper }}) {{ opt.text }}
+                            {% if is_selected and not is_correct %}~~{% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            {% if submitted %}
+            <div class="alert alert-info bg-dark border-info text-info mt-3 mb-0 p-2">
+                💡 {{ q.explanation }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not submitted %}
+    <button type="submit" name="action" value="submit" class="btn btn-primary btn-lg w-100 mt-2">📩 Submit Answers</button>
+    {% else %}
+    <div class="row text-center mb-4 mt-2">
+        {% set total = quiz_result.questions | length %}
+        {% set ns = namespace(score=0) %}
+        {% for q in quiz_result.questions %}
+            {% if answers.get(q.id) == q.correct_option_id %}
+                {% set ns.score = ns.score + 1 %}
+            {% endif %}
+        {% endfor %}
+        {% set pct = ((ns.score / total) * 100) | int %}
+        <div class="col">
+            <h4 class="text-secondary">Score</h4>
+            <h2 class="text-primary">{{ ns.score }} / {{ total }}</h2>
+        </div>
+        <div class="col">
+            <h4 class="text-secondary">Percentage</h4>
+            <h2 class="text-primary">{{ pct }}%</h2>
+        </div>
+        <div class="col">
+            <h4 class="text-secondary">Grade</h4>
+            <h2 class="text-primary">
+                {% if pct == 100 %}⭐ Perfect!{% elif pct >= 66 %}👍 Good{% else %}📖 Keep learning{% endif %}
+            </h2>
+        </div>
+    </div>
+    <button type="submit" name="action" value="generate" class="btn btn-outline-primary btn-lg w-100">🔄 Retake Quiz</button>
+    {% endif %}
+</form>
+
+{% if quiz_result.glossary or quiz_result.common_mistakes or quiz_result.improvement %}
+<hr class="border-secondary my-5">
+
+{% if quiz_result.glossary %}
+<h3 class="mb-3">📖 Glossary</h3>
+<ul class="list-group bg-dark mb-4">
+    {% for g in quiz_result.glossary %}
+    <li class="list-group-item bg-dark text-light border-secondary">
+        <strong>{{ g.term }}</strong>: {{ g.definition }}
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if quiz_result.common_mistakes %}
+<h3 class="mb-3">⚠️ Common Mistakes</h3>
+<ul class="list-group bg-dark mb-4">
+    {% for m in quiz_result.common_mistakes %}
+    <li class="list-group-item bg-dark text-light border-secondary">
+        {{ m }}
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if quiz_result.improvement %}
+<h3 class="mb-3">✨ Improved Code Suggestion</h3>
+<div class="card bg-dark border-secondary">
+    <div class="card-body p-0">
+        <pre class="mb-0"><code class="language-{{ session.get('current_language', 'python') }}">{{ quiz_result.improvement.improved_code }}</code></pre>
+    </div>
+    <div class="card-footer border-secondary text-muted">
+        {{ quiz_result.improvement.explanation }}
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endif %}
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">📖 Code Explanation</h2>
+
+{% if result %}
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-body">
+        <h5 class="card-title text-primary">Summary</h5>
+        <p class="card-text">{{ result.summary | default('No summary available.') }}</p>
+    </div>
+</div>
+
+{% if result.ast_analysis %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-dark border-secondary text-center">
+            <div class="card-body">
+                <h6 class="text-secondary text-uppercase mb-1"><small>Complexity</small></h6>
+                <h3 class="text-primary mb-0">{{ result.ast_analysis.complexity_score | default(1) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-secondary text-center">
+            <div class="card-body">
+                <h6 class="text-secondary text-uppercase mb-1"><small>Max Nesting</small></h6>
+                <h3 class="text-primary mb-0">{{ result.ast_analysis.max_nesting_depth | default(0) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-secondary text-center">
+            <div class="card-body">
+                <h6 class="text-secondary text-uppercase mb-1"><small>Functions</small></h6>
+                <h3 class="text-primary mb-0">{{ result.ast_analysis.metrics.num_functions | default(0) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-dark border-secondary text-center">
+            <div class="card-body">
+                <h6 class="text-secondary text-uppercase mb-1"><small>Static Hints</small></h6>
+                <h3 class="text-primary mb-0">{{ result.ast_analysis.static_hints | length }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if result.ast_analysis.static_hints %}
+<h4 class="mb-3 text-warning">⚠️ Static Analysis Hints</h4>
+{% for hint in result.ast_analysis.static_hints %}
+<div class="alert alert-warning bg-dark border-warning text-light">
+    <strong>[{{ hint.rule_id }}]</strong> Line {{ hint.line_start }}: {{ hint.message }}
+    {% if hint.suggestion %}
+    <br><small class="text-muted">💡 {{ hint.suggestion }}</small>
+    {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endif %}
+
+<hr class="border-secondary my-4">
+
+{% if result.rag_sources %}
+<h3 class="mb-3">📚 Grounded Knowledge & Source Citations</h3>
+<p class="text-muted"><small>This explanation is verified and grounded against curated programming reference documentation:</small></p>
+<div class="accordion accordion-flush bg-dark mb-4" id="ragAccordion">
+    {% for cite in result.rag_sources %}
+    <div class="accordion-item bg-dark border-secondary text-light">
+        <h2 class="accordion-header" id="heading{{ loop.index }}">
+            <button class="accordion-button collapsed bg-dark text-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
+                📖 {{ cite.title }} — {{ cite.source }} ({{ (cite.similarity_score * 100) | int }}% match)
+            </button>
+        </h2>
+        <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#ragAccordion">
+            <div class="accordion-body">
+                <blockquote class="blockquote border-start border-primary ps-3 mb-2">
+                    <p class="mb-0 fs-6">{{ cite.snippet }}</p>
+                </blockquote>
+                <small class="text-muted">Topic: <code>{{ cite.topic }}</code> | Chunk ID: <code>{{ cite.chunk_id }}</code></small>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% elif result.rag_context_used == false %}
+<p class="text-muted small">ℹ️ Note: Curated reference documentation had no high-confidence match for this specific snippet; explanation was synthesized using core programming heuristics.</p>
+{% endif %}
+
+<hr class="border-secondary my-4">
+
+<h3 class="mb-3">🧩 Block-by-Block Explanations</h3>
+{% if result.blocks %}
+{% for block in result.blocks %}
+<div class="card bg-dark border-secondary mb-3">
+    <div class="card-header border-secondary text-primary fw-bold">
+        {{ block.title }} — Lines {{ block.line_start }}–{{ block.line_end }}
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6 border-end border-secondary">
+                <p>{{ block.explanation }}</p>
+            </div>
+            <div class="col-md-6">
+                <!-- We simulate the block code here since we only have the full code -->
+                <pre class="mb-0"><code class="language-{{ result.language | default('python') }}"># Lines {{ block.line_start }} - {{ block.line_end }}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No block explanations available.</p>
+{% endif %}
+
+<hr class="border-secondary my-4">
+
+<h3 class="mb-3">🏷️ Concept Tags</h3>
+{% if result.concepts %}
+<div class="mb-3">
+    {% for c in result.concepts %}
+    <span class="badge border border-primary text-primary rounded-pill px-3 py-2 me-2 mb-2">{{ c.concept }}</span>
+    {% endfor %}
+</div>
+<ul class="list-unstyled">
+    {% for c in result.concepts %}
+    <li class="mb-2"><strong>{{ c.concept }}</strong> — <span class="text-muted">{{ c.definition }}</span></li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if result.algorithm_steps %}
+<hr class="border-secondary my-4">
+<h3 class="mb-3">📐 Algorithm Steps</h3>
+<ol class="list-group list-group-numbered bg-dark">
+    {% for step in result.algorithm_steps %}
+    <li class="list-group-item bg-dark text-light border-secondary">{{ step }}</li>
+    {% endfor %}
+</ol>
+{% endif %}
+
+{% if result.complexity %}
+<hr class="border-secondary my-4">
+<h3 class="mb-3">⚡ Complexity</h3>
+<div class="row mb-2">
+    <div class="col-md-6">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body text-center">
+                <h6 class="text-secondary text-uppercase">Time</h6>
+                <h4 class="text-primary mb-0">{{ result.complexity.time_complexity | default('–') }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body text-center">
+                <h6 class="text-secondary text-uppercase">Space</h6>
+                <h4 class="text-primary mb-0">{{ result.complexity.space_complexity | default('–') }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+<p class="text-muted">{{ result.complexity.explanation | default('') }}</p>
+{% endif %}
+
+{% if result.hints %}
+<hr class="border-secondary my-4">
+<h3 class="mb-3">💡 Improvement Hints</h3>
+<ul class="list-group bg-dark">
+    {% for hint in result.hints %}
+    <li class="list-group-item bg-dark text-light border-secondary">
+        <i class="text-warning">💡</i> {{ hint }}
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% endif %}
+{% endblock %}

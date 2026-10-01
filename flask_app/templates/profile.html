@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Lore | Profile Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="dashboard-container">
+    
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <a href="{{ url_for('app_view') }}" class="brand">
+            <i class="bi bi-lightning-charge-fill"></i> CODE LORE
+        </a>
+        <div class="nav-icons">
+            <a href="{{ url_for('app_view') }}" class="nav-icon"><i class="bi bi-house"></i></a>
+            <a href="{{ url_for('history') }}" class="nav-icon"><i class="bi bi-clock-history"></i></a>
+            <a href="{{ url_for('concepts') }}" class="nav-icon"><i class="bi bi-book"></i></a>
+            <a href="{{ url_for('quiz') }}" class="nav-icon"><i class="bi bi-controller"></i></a>
+            <a href="{{ url_for('profile') }}" class="nav-icon active"><i class="bi bi-person"></i></a>
+        </div>
+        <div class="user-actions">
+            <div style="position: relative;">
+                <i class="bi bi-search" style="position: absolute; left: 0; top: 4px; color: rgba(255,255,255,0.5); font-size: 0.8rem;"></i>
+                <input type="text" class="search-bar" placeholder="Search.." style="padding-left: 20px; width: 150px;">
+            </div>
+            <div class="user-avatar-sm">{{ user[0]|upper if user else 'U' }}</div>
+            <a href="{{ url_for('logout') }}" style="color: var(--text-muted); font-size: 1.2rem; margin-left: 10px;"><i class="bi bi-box-arrow-right"></i></a>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="dashboard-content">
+        <!-- Left: Character -->
+        <div class="character-area">
+            <img src="{{ url_for('static', filename='images/avatar.jpg') }}" class="character-img" style="border-radius: 20px; clip-path: inset(0 0 10% 0); mask-image: linear-gradient(to bottom, black 60%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);" alt="Cyber Coder">
+        </div>
+
+        <!-- Center: Radar Chart -->
+        <div class="chart-area">
+            <div class="chart-container">
+                <canvas id="skillsChart"></canvas>
+                <div class="chart-center-text">LVL</div>
+            </div>
+        </div>
+
+        <!-- Right: Stats -->
+        <div class="stats-area">
+            <div class="user-title">
+                <h1>{{ user }}</h1>
+                <div class="user-subtitle">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1162/1162235.png" width="16" style="filter: invert(1);">
+                    Code Explorer
+                </div>
+            </div>
+
+            <div class="primary-stats">
+                <div class="p-card red">
+                    <i class="bi bi-code-slash icon"></i>
+                    <div class="label">Analyses</div>
+                    <div class="value">{{ history|length }}</div>
+                </div>
+                <div class="p-card purple">
+                    <i class="bi bi-controller icon"></i>
+                    <div class="label">Quizzes</div>
+                    <div class="value">12</div>
+                </div>
+                <div class="p-card white">
+                    <i class="bi bi-star icon"></i>
+                    <div class="label">Avg Score</div>
+                    <div class="value">88%</div>
+                </div>
+            </div>
+
+            <div class="secondary-stats">
+                <div class="s-card">
+                    <div class="label">Top Language</div>
+                    <div class="value">Python</div>
+                </div>
+                <div class="s-card">
+                    <div class="label">Avg Level</div>
+                    <div class="value">Intermediate</div>
+                </div>
+                <div class="s-card">
+                    <div class="label">Member Since</div>
+                    <div class="value">2026</div>
+                </div>
+                <div class="s-card">
+                    <div class="label">Rank</div>
+                    <div class="value">#42</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Area -->
+    <div class="bottom-area">
+        <!-- Table -->
+        <div class="table-section">
+            <div class="table-header">
+                <h3>Recent Analyses</h3>
+                <span style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;">By Date <i class="bi bi-chevron-down"></i></span>
+            </div>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Language</th>
+                        <th>Level</th>
+                        <th>Summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in history[:4] %}
+                    <tr>
+                        <td style="white-space: nowrap;">{{ item.created_at[:10] }}</td>
+                        <td>
+                            <span class="badge {{ 'python' if item.language == 'python' else 'js' }}">
+                                {{ item.language | upper }}
+                            </span>
+                        </td>
+                        <td>{{ item.level | capitalize }}</td>
+                        <td style="color: rgba(255,255,255,0.8);">{{ item.summary | truncate(45) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center">No recent analyses found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mini Cards -->
+        <div class="mini-cards-section">
+            <div class="mini-tabs">
+                <span style="color: #ef4444;">Live •</span>
+                <span class="active">Yesterday</span>
+                <span>Today</span>
+                <span>Archived</span>
+            </div>
+            
+            <!-- Card 1 -->
+            <div class="mini-card">
+                <div class="mc-icon" style="color: #60a5fa;"><i class="bi bi-file-earmark-code"></i></div>
+                <div class="mc-content">
+                    <div class="date">Jul 22, 03:35 PM</div>
+                    <div class="score">Python Quiz</div>
+                </div>
+                <div class="mc-badge win">PASS</div>
+            </div>
+            
+            <!-- Card 2 -->
+            <div class="mini-card">
+                <div class="mc-icon" style="color: #facc15;"><i class="bi bi-filetype-js"></i></div>
+                <div class="mc-content">
+                    <div class="date">Jul 22, 04:10 PM</div>
+                    <div class="score">JS Async</div>
+                </div>
+                <div class="mc-badge loss">FAIL</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Radar Chart
+    const ctx = document.getElementById('skillsChart').getContext('2d');
+    
+    Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Python', 'JS', 'Logic', 'Debugging', 'Syntax'],
+            datasets: [{
+                label: 'Skill Level',
+                data: [85, 65, 90, 75, 80],
+                backgroundColor: 'rgba(239, 68, 68, 0.2)', // Red tint
+                borderColor: 'rgba(239, 68, 68, 1)',
+                pointBackgroundColor: 'rgba(239, 68, 68, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(239, 68, 68, 1)',
+                borderWidth: 2,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                r: {
+                    angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    pointLabels: {
+                        font: { size: 11, weight: '600' },
+                        color: 'rgba(255, 255, 255, 0.8)'
+                    },
+                    ticks: {
+                        display: false,
+                        max: 100,
+                        min: 0
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+</script>
+</body>
+</html>

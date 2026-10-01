@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">📜 Submission History</h2>
+
+{% if history %}
+<p>Showing <strong>{{ history | length }}</strong> saved submissions.</p>
+<div class="list-group bg-dark">
+    {% for item in history %}
+    <div class="list-group-item bg-dark text-light border-secondary p-3">
+        <div class="d-flex w-100 justify-content-between mb-2">
+            <h5 class="mb-1 text-primary">#{{ item.id }} &middot; {{ item.language | upper }} &middot; {{ item.level }}</h5>
+            <small class="text-muted">{{ item.created_at[:19] }}</small>
+        </div>
+        <p class="mb-2">{{ item.summary }}</p>
+        <a href="{{ url_for('load_history', item_id=item.id) }}" class="btn btn-sm btn-outline-primary">📥 Load Submission</a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info bg-dark border-info text-info">
+    No submissions saved yet. Analyze some code with <strong>Save to History</strong> enabled.
+</div>
+{% endif %}
+
+{% endblock %}

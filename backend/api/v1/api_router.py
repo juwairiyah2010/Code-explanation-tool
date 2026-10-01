@@ -1,7 +1,7 @@
 """API v1 router aggregator."""
 
 from fastapi import APIRouter
-from backend.api.v1.endpoints import health, ast_analysis, explanation, trace, quiz, history, concepts, rag
+from backend.api.v1.endpoints import health, ast_analysis, explanation, trace, quiz, history, concepts, rag, auth
 
 api_router = APIRouter()
 
@@ -13,4 +13,5 @@ api_router.include_router(quiz.router, prefix="/quiz", tags=["quiz"])
 api_router.include_router(history.router, prefix="/history", tags=["history"])
 api_router.include_router(concepts.router, prefix="/concepts", tags=["concepts"])
 api_router.include_router(rag.router, prefix="/rag", tags=["rag"])
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 

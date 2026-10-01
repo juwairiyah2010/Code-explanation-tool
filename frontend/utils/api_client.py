@@ -169,3 +169,18 @@ class APIClient:
             return {"documents": 0, "chunks": 0}
         return {"documents": 0, "chunks": 0}
 
+    # ── Auth ─────────────────────────────────────────────────────────
+    def signup(self, username: str, password: str) -> dict[str, Any]:
+        with httpx.Client(timeout=self.timeout) as c:
+            payload = {"username": username, "password": password}
+            res = c.post(f"{self.base_url}/auth/signup", json=payload)
+            res.raise_for_status()
+            return res.json()
+
+    def login(self, username: str, password: str) -> dict[str, Any]:
+        with httpx.Client(timeout=self.timeout) as c:
+            payload = {"username": username, "password": password}
+            res = c.post(f"{self.base_url}/auth/login", json=payload)
+            res.raise_for_status()
+            return res.json()
+
