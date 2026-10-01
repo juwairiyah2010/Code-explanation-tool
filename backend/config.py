@@ -27,10 +27,6 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./data/app.db"
 
     # LLM Settings
-    LLM_PROVIDER: str = "mock"
-    LLM_API_KEY: str | None = None
-
-    # LLM Settings
     LLM_PROVIDER: Literal["mock", "openai", "gemini"] = "mock"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"

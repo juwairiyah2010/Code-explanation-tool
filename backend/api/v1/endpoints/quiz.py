@@ -53,7 +53,7 @@ async def generate_quiz(request: QuizRequest):
     except ValueError as e:
         logger.error(f"Quiz validation error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Generated quiz failed validation: {str(e)}"
         )
     except Exception as e:
