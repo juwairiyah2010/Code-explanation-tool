@@ -705,14 +705,39 @@ elif page == "📜 History":
                 lang_h = item.get("language", "unknown")
                 level_h = item.get("level", "")
                 created = item.get("created_at", "")
+                summary_preview = item.get("summary", "")
 
-                with st.expander(f"**#{item_id}** · {lang_h.upper()} · {level_h} · {created[:19]}"):
+                label = f"**#{item_id}** · {lang_h.upper()} · {level_h} · {created[:19]}"
+                if summary_preview:
+                    label += f" — {summary_preview[:60]}…"
+
+                with st.expander(label):
                     detail = client.get_history_item(item_id)
                     if detail:
-                        st.markdown(f"**Language:** {detail.get('language', '')}")
-                        st.markdown(f"**Level:** {detail.get('level', '')}")
-                        st.markdown(f"**Created:** {detail.get('created_at', '')}")
+                        st.markdown(f"**Summary:** {detail.get('summary', 'No summary available.')}")
+                        st.caption(f"Language: `{detail.get('language')}` | Level: `{detail.get('level')}` | Saved: `{detail.get('created_at')}`")
+                        
+                        saved_code = detail.get("code", "")
+                        if saved_code:
+                            st.code(saved_code, language=detail.get("language", "python"))
+
+                        if st.button(f"📥 Load Submission #{item_id} into Explanation View", key=f"load_hist_{item_id}"):
+                            st.session_state["current_code"] = saved_code
+                            st.session_state["current_language"] = detail.get("language", "python")
+                            st.session_state["explanation_result"] = {
+                                "id": detail.get("id"),
+                                "language": detail.get("language"),
+                                "level": detail.get("level"),
+                                "summary": detail.get("summary"),
+                                "blocks": detail.get("blocks", []),
+                                "concepts": detail.get("concepts", []),
+                                "algorithm_steps": (detail.get("explanation") or {}).get("algorithm_steps", []),
+                                "complexity": (detail.get("explanation") or {}).get("complexity", {}),
+                                "hints": (detail.get("explanation") or {}).get("hints", []),
+                            }
+                            st.success(f"Loaded submission #{item_id}! Go to 📖 Explanation page.")
                     else:
                         st.caption("Could not load details.")
         else:
             st.info("No submissions saved yet. Analyze some code with **Save to History** enabled.")
+
