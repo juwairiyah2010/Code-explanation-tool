@@ -48,28 +48,49 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from backend.core.security import RequestSizeLimitMiddleware, sanitize_internal_error
+
+
 def create_app() -> FastAPI:
-    """FastAPI Application Factory."""
+    """FastAPI Application Factory with hardened security and error sanitization."""
+    docs_url = "/docs" if settings.ENVIRONMENT != "production" else None
+    redoc_url = "/redoc" if settings.ENVIRONMENT != "production" else None
+
     app = FastAPI(
         title=settings.APP_NAME,
         description="Modular REST API for AST-powered and LLM-assisted multi-language code explanation.",
         version="0.1.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url=docs_url,
+        redoc_url=redoc_url,
         lifespan=lifespan,
     )
 
+    # Request size limiting middleware (2 MB maximum payload)
+    app.add_middleware(RequestSizeLimitMiddleware, max_content_length=2 * 1024 * 1024)
+
     # CORS configuration
+    cors_origins = settings.CORS_ORIGINS if settings.ENVIRONMENT == "production" else ["*"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=cors_origins,
         allow_credentials=False,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
     # Mount API routers
     app.include_router(api_router, prefix=settings.API_V1_STR)
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """Sanitize unhandled internal exceptions to prevent information leakage in production."""
+        detail = sanitize_internal_error(exc, context_msg="Unhandled server exception")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": detail},
+        )
 
     @app.get("/", tags=["Root"])
     def root() -> dict[str, str]:

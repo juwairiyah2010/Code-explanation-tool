@@ -36,11 +36,19 @@ class Settings(BaseSettings):
     # RAG & Embeddings
     EMBEDDING_PROVIDER: str = "fastembed"
 
-    # Security
+    # Security & CORS
     SECRET_KEY: str = "code_lore_default_secret_key"
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:8501",
+        "http://127.0.0.1:8501",
+        "http://localhost:5001",
+        "http://127.0.0.1:5001",
+        "http://localhost:3000",
+    ]
+    RATE_LIMITING_ENABLED: bool = True
 
     # Parser / AST limits
-    MAX_CODE_LENGTH: int = 10000
+    MAX_CODE_LENGTH: int = 50000
     ENABLE_TREE_SITTER: bool = True
 
 

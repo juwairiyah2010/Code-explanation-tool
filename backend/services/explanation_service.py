@@ -12,8 +12,6 @@ from backend.services.explanation_pipeline import ExplanationPipeline
 from backend.services.llm import BaseLLMService
 
 
-
-
 class ExplanationService:
     """Service that processes code analysis and explanations using the ExplanationPipeline."""
 
@@ -30,7 +28,6 @@ class ExplanationService:
     @llm.setter
     def llm(self, value: BaseLLMService) -> None:
         self.pipeline.llm_service = value
-
 
     def analyze_code_ast(
         self,

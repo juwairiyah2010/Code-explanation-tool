@@ -7,6 +7,12 @@ from backend.models.persistence import User
 from backend.repositories.user_repo import UserRepository
 
 
+PBKDF2_ITERATIONS = 600000  # OWASP recommended minimum for PBKDF2-HMAC-SHA256
+LEGACY_ITERATIONS = 100000
+MIN_PASSWORD_LENGTH = 8
+MAX_PASSWORD_LENGTH = 128
+
+
 class AuthService:
     """Service handling user account registration and authentication logic."""
 
@@ -14,7 +20,7 @@ class AuthService:
         self.user_repo = user_repo
 
     @staticmethod
-    def hash_password(password: str, salt: str | None = None) -> str:
+    def hash_password(password: str, salt: str | None = None, iterations: int = PBKDF2_ITERATIONS) -> str:
         """Hash password with PBKDF2-HMAC-SHA256 and cryptographic salt."""
         if salt is None:
             salt = secrets.token_hex(16)
@@ -22,25 +28,55 @@ class AuthService:
             "sha256",
             password.encode("utf-8"),
             salt.encode("utf-8"),
-            100000,
+            iterations,
         )
-        return f"{salt}${key.hex()}"
+        return f"pbkdf2:sha256:{iterations}${salt}${key.hex()}"
 
     @classmethod
     def verify_password(cls, password: str, password_hash: str) -> bool:
-        """Verify password against stored salt and key using constant-time comparison."""
+        """Verify password against stored hash using constant-time comparison."""
         try:
-            salt, key = password_hash.split("$")
-            computed = cls.hash_password(password, salt)
-            return hmac.compare_digest(computed, password_hash)
+            if password_hash.startswith("pbkdf2:sha256:"):
+                # Modern format: pbkdf2:sha256:<iterations>$<salt>$<key>
+                parts = password_hash.split("$")
+                if len(parts) != 3:
+                    return False
+                header, salt, _ = parts
+                iter_str = header.split(":")[-1]
+                iterations = int(iter_str)
+                computed = cls.hash_password(password, salt, iterations=iterations)
+                return hmac.compare_digest(computed, password_hash)
+            else:
+                # Legacy format: <salt>$<key> (100,000 iterations)
+                parts = password_hash.split("$")
+                if len(parts) != 2:
+                    return False
+                salt, _ = parts
+                key = hashlib.pbkdf2_hmac(
+                    "sha256",
+                    password.encode("utf-8"),
+                    salt.encode("utf-8"),
+                    LEGACY_ITERATIONS,
+                )
+                computed = f"{salt}${key.hex()}"
+                return hmac.compare_digest(computed, password_hash)
         except (ValueError, AttributeError):
             return False
 
     def register_user(self, username: str, password: str) -> User:
-        """Register a new user account if username is available."""
+        """Register a new user account if username is available and password satisfies policy."""
         clean_username = username.strip()
         if not clean_username or not password:
             raise ValueError("Username and password must not be empty.")
+
+        if len(clean_username) < 3 or len(clean_username) > 64:
+            raise ValueError("Username must be between 3 and 64 characters.")
+
+        if len(password) < MIN_PASSWORD_LENGTH:
+            raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters.")
+
+        if len(password) > MAX_PASSWORD_LENGTH:
+            raise ValueError(f"Password cannot exceed {MAX_PASSWORD_LENGTH} characters.")
 
         existing = self.user_repo.get_by_username(clean_username)
         if existing:

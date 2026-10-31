@@ -238,6 +238,39 @@ def run_trace(code_str: str, input_data: str | None = None) -> dict:
 
         return trace_dispatcher
 
+    # AST-level static check to block Python sandbox reflection escapes
+    try:
+        import ast
+        tree = ast.parse(code_str)
+        forbidden_attrs = {
+            "__subclasses__", "__bases__", "__mro__", "__globals__",
+            "__code__", "__closure__", "__func__", "__builtins__",
+            "__import__",
+        }
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr in forbidden_attrs:
+                sys.stdout = original_stdout
+                return {
+                    "success": False,
+                    "language": "python",
+                    "error": f"SecurityError: Access to internal attribute '{node.attr}' is prohibited by execution sandbox.",
+                    "steps": [],
+                    "output": "",
+                    "final_state": {},
+                    "execution_time": round(time.perf_counter() - start_time, 4),
+                }
+    except SyntaxError as e:
+        sys.stdout = original_stdout
+        return {
+            "success": False,
+            "language": "python",
+            "error": f"SyntaxError: {e.msg} at line {e.lineno}",
+            "steps": [],
+            "output": "",
+            "final_state": {},
+            "execution_time": round(time.perf_counter() - start_time, 4),
+        }
+
     # Compile the code
     try:
         compiled_code = compile(code_str, "<string>", "exec")

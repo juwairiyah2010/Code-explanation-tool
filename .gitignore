@@ -1,4 +1,4 @@
-# Python
+# Python Bytecode & Environments
 __pycache__/
 *.py[cod]
 *$py.class
@@ -23,35 +23,53 @@ wheels/
 .installed.cfg
 *.egg
 
-# Testing & Coverage
+# Testing, Coverage & Caches
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 .nox/
 .hypothesis/
+.mypy_cache/
+.ruff_cache/
 
-# Environment variables & secrets
+# Environment Variables & Secrets
 .env
+.env.*
+*.env
 *.env.local
+!*.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+secrets/
 
-# Database
+# Database Files
 *.sqlite
+*.sqlite3
 *.db
+*.db-journal
+*.db-wal
 data/*.db
+data/*.sqlite
 !data/.gitkeep
 
-# Streamlit
-.streamlit/
+# Logs & Runtime State
 *.log
+*.log.*
+logs/
+.streamlit/
 
-# IDE & Editor
+# IDE & OS Metadata
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
 
 # Frontend Node (if any)
 node_modules/
-dist/

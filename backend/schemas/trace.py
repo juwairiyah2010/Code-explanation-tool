@@ -5,9 +5,9 @@ from typing import Any
 
 
 class TraceRequest(BaseModel):
-    code: str
-    language: str = "python"
-    input_data: str | None = None
+    code: str = Field(..., min_length=1, max_length=50000, description="Python code to trace")
+    language: str = Field("python", max_length=32)
+    input_data: str | None = Field(None, max_length=10000, description="Optional stdin data")
     generate_flowchart: bool = False
 
 

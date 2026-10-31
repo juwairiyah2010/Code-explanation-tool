@@ -1,7 +1,6 @@
-"""Quiz generation endpoints."""
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from backend.core.logging import logger
+from backend.core.security import rate_limit_expensive, sanitize_internal_error
 from backend.schemas.quiz import QuizRequest, QuizResponse
 from backend.services.llm import get_llm_service
 from backend.services.quiz_service import QuizService
@@ -20,6 +19,7 @@ def get_current_quiz_service() -> QuizService:
     status_code=status.HTTP_200_OK,
     summary="Generate Code Quiz",
     description="Generate a multiple-choice quiz based on code and explanation.",
+    dependencies=[Depends(rate_limit_expensive)],
 )
 async def generate_quiz(
     request: QuizRequest,
@@ -35,8 +35,8 @@ async def generate_quiz(
             detail=f"Generated quiz failed validation: {str(e)}",
         )
     except Exception as e:
-        logger.error(f"Error generating quiz: {e}")
+        detail = sanitize_internal_error(e, context_msg="Internal error generating quiz")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal error generating quiz: {str(e)}",
+            detail=detail,
         )

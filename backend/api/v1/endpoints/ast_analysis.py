@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from backend.api.deps import get_code_analyzer
+from backend.core.security import sanitize_internal_error
 from backend.schemas.explanation import CodeAnalysisRequest, CodeAnalysisResponse
 from backend.services.analysis.code_analyzer import CodeAnalyzer
 
@@ -26,7 +27,8 @@ def analyze_ast(
             detail=str(e),
         )
     except Exception as e:
+        detail = sanitize_internal_error(e, context_msg="AST Analysis failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"AST Analysis failed: {str(e)}",
+            detail=detail,
         )

@@ -1,12 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, g
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from frontend.utils.api_client import APIClient
-import json
 from functools import wraps
 from backend.config import get_settings
 
+from datetime import timedelta
+from backend.core.logging import logger
+
 app = Flask(__name__)
 settings = get_settings()
-app.secret_key = getattr(settings, "SECRET_KEY", "super_secret_key_for_code_lore")
+
+secret_key = getattr(settings, "SECRET_KEY", "code_lore_default_secret_key")
+if settings.ENVIRONMENT == "production" and secret_key in ("code_lore_default_secret_key", "super_secret_key_for_code_lore"):
+    logger.critical("SECURITY WARNING: Using insecure default SECRET_KEY in production! Set SECRET_KEY via environment variable.")
+
+app.secret_key = secret_key
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=not settings.DEBUG and settings.ENVIRONMENT == "production",
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=24),
+)
 client = APIClient()
 
 PYTHON_EXAMPLE = '''import math
@@ -258,7 +271,7 @@ def login():
             session['username'] = res['username']
             flash('Logged in successfully!', 'success')
             return redirect(url_for('app_view'))
-        except Exception as e:
+        except Exception:
             flash('Login failed. Please check your credentials.', 'danger')
     return render_template('login.html')
 

@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from backend.api.deps import get_auth_service
+from backend.core.security import rate_limit_auth
 from backend.schemas.auth import UserCreate, UserLogin, UserResponse
 from backend.services.auth_service import AuthService
 
@@ -13,6 +14,7 @@ router = APIRouter()
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Register a new user",
+    dependencies=[Depends(rate_limit_auth)],
 )
 def signup(
     user: UserCreate,
@@ -31,6 +33,7 @@ def signup(
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Authenticate user credentials",
+    dependencies=[Depends(rate_limit_auth)],
 )
 def login(
     user: UserLogin,

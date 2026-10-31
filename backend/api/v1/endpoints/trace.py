@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from backend.api.deps import get_tracer_service
+from backend.core.security import rate_limit_expensive, sanitize_internal_error
 from backend.schemas.trace import TraceRequest, TraceResponse
 from backend.services.tracer_service import TracerService
 
@@ -14,6 +15,7 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     summary="Generate Execution Trace",
     description="Trace Python execution step-by-step in an isolated subprocess.",
+    dependencies=[Depends(rate_limit_expensive)],
 )
 async def create_trace(
     request: TraceRequest,
@@ -30,7 +32,8 @@ async def create_trace(
     except HTTPException:
         raise
     except Exception as e:
+        detail = sanitize_internal_error(e, context_msg="Execution trace failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail=detail,
         )

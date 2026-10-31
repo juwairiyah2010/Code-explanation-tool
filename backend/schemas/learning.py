@@ -75,11 +75,11 @@ class LearningMaterialResponse(BaseModel):
 
 
 class SubmitAnswersRequest(BaseModel):
-    code: str = Field(..., description="Source code for the learning session")
-    language: str = Field("python", description="Programming language")
+    code: str = Field(..., min_length=1, max_length=50000, description="Source code for the learning session")
+    language: str = Field("python", max_length=32, description="Programming language")
     answers: dict[str, str] = Field(..., description="Mapping of question id to chosen option id (e.g. {'1': 'A', '2': 'B'})")
     questions_payload: list[dict[str, Any]] | None = Field(None, description="Optional question definitions for standalone stateless scoring")
-    session_id: str | None = Field(None, description="Optional session or submission ID")
+    session_id: str | None = Field(None, max_length=128, description="Optional session or submission ID")
     user_id: int | None = Field(None, description="Optional user ID for progress tracking")
 
 

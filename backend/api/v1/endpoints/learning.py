@@ -17,6 +17,8 @@ from backend.services.learning_service import LearningService
 router = APIRouter()
 
 
+from backend.core.security import rate_limit_expensive, sanitize_internal_error
+
 def get_learning_service() -> LearningService:
     return LearningService()
 
@@ -27,6 +29,7 @@ def get_learning_service() -> LearningService:
     status_code=status.HTTP_200_OK,
     summary="Generate Interactive Code-Learning Workflow Material",
     description="Analyzes code deterministically and generates key concepts, beginner explanation, execution walkthrough, common mistakes, 5 grounded questions (3 comprehension, 1 debugging, 1 predict output), and final takeaway.",
+    dependencies=[Depends(rate_limit_expensive)],
 )
 async def generate_learning_material(
     request: QuizRequest,
@@ -40,10 +43,10 @@ async def generate_learning_material(
             locale=request.locale,
         )
     except Exception as e:
-        logger.error(f"Error generating learning material: {e}")
+        detail = sanitize_internal_error(e, context_msg="Failed to generate learning material")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate learning material: {str(e)}",
+            detail=detail,
         )
 
 

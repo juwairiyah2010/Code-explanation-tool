@@ -3,11 +3,11 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class QuizRequest(BaseModel):
-    code: str
-    language: str = "python"
-    explanation_context: Optional[str] = None
-    locale: str = "en"
-    workflow: str = "standard"  # "standard" (3 questions) or "learning" (5 questions + workflow material)
+    code: str = Field(..., min_length=1, max_length=50000, description="Code snippet for quiz generation")
+    language: str = Field("python", max_length=32)
+    explanation_context: Optional[str] = Field(None, max_length=20000)
+    locale: str = Field("en", max_length=16)
+    workflow: str = Field("standard", max_length=32)  # "standard" (3 questions) or "learning" (5 questions + workflow material)
 
 
 class QuizOption(BaseModel):

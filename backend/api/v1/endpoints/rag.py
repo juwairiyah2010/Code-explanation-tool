@@ -7,6 +7,7 @@ from backend.schemas.rag import (
     RAGRetrievalRequest,
     RAGRetrievalResponse,
 )
+from backend.core.security import sanitize_internal_error
 from backend.services.rag.rag_service import RAGService
 
 router = APIRouter()
@@ -52,7 +53,8 @@ def trigger_ingestion(
     try:
         return rag_service.ingest_directory()
     except Exception as e:
+        detail = sanitize_internal_error(e, context_msg="Failed to ingest knowledge base")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to ingest knowledge base: {str(e)}",
+            detail=detail,
         )
