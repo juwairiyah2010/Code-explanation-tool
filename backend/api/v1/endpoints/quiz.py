@@ -21,6 +21,14 @@ def get_current_quiz_service() -> QuizService:
     description="Generate a multiple-choice quiz based on code and explanation.",
     dependencies=[Depends(rate_limit_expensive)],
 )
+@router.post(
+    "/generate",
+    response_model=QuizResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate Code Quiz (Alias)",
+    description="Generate a multiple-choice quiz based on code and explanation.",
+    dependencies=[Depends(rate_limit_expensive)],
+)
 async def generate_quiz(
     request: QuizRequest,
     quiz_service: QuizService = Depends(get_current_quiz_service),

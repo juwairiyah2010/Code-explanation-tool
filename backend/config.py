@@ -49,8 +49,6 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = [
         "http://localhost:8501",
         "http://127.0.0.1:8501",
-        "http://localhost:5001",
-        "http://127.0.0.1:5001",
         "http://localhost:3000",
     ]
     RATE_LIMITING_ENABLED: bool = True

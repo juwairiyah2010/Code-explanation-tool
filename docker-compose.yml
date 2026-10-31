@@ -21,7 +21,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8501,http://127.0.0.1:8501,http://localhost:5001}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8501,http://127.0.0.1:8501}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s

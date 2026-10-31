@@ -8,7 +8,6 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 from backend.core.logging import logger
-from backend.models.persistence import KnowledgeChunk
 from backend.repositories.rag_repo import RAGRepository
 from backend.schemas.rag import RAGRetrievalResponse, RAGSourceCitation
 from backend.services.rag.embeddings import BaseEmbeddingService, get_embedding_service
@@ -61,7 +60,6 @@ class BM25Scorer:
 
 from collections import OrderedDict
 from dataclasses import dataclass
-import hashlib
 import threading
 
 @dataclass
