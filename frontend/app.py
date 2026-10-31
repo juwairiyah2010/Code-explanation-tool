@@ -211,6 +211,52 @@ section[data-testid="stSidebar"] {
 }
 .status-dot.green { background: var(--accent-green); }
 .status-dot.red   { background: #f85149; }
+
+/* Quiz Checkpoint Styling */
+.quiz-checkpoint-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+}
+.quiz-feedback-box {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+.quiz-feedback-box.correct {
+    background: rgba(63, 185, 80, 0.12);
+    border: 1px solid rgba(63, 185, 80, 0.4);
+    color: #7ee787;
+}
+.quiz-feedback-box.incorrect {
+    background: rgba(248, 81, 73, 0.12);
+    border: 1px solid rgba(248, 81, 73, 0.4);
+    color: #ff7b72;
+}
+.concept-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 4px;
+}
+.concept-tag.understood {
+    background: rgba(63, 185, 80, 0.12);
+    color: #7ee787;
+    border: 1px solid rgba(63, 185, 80, 0.3);
+}
+.concept-tag.revision {
+    background: rgba(210, 153, 34, 0.12);
+    color: #e3b341;
+    border: 1px solid rgba(210, 153, 34, 0.3);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -301,6 +347,14 @@ if "quiz_answers" not in st.session_state:
     st.session_state["quiz_answers"] = {}
 if "quiz_submitted" not in st.session_state:
     st.session_state["quiz_submitted"] = False
+if "quiz_current_index" not in st.session_state:
+    st.session_state["quiz_current_index"] = 0
+if "quiz_question_answered" not in st.session_state:
+    st.session_state["quiz_question_answered"] = False
+if "quiz_completed" not in st.session_state:
+    st.session_state["quiz_completed"] = False
+if "quiz_history_results" not in st.session_state:
+    st.session_state["quiz_history_results"] = []
 if "active_step_idx" not in st.session_state:
     st.session_state["active_step_idx"] = 1
 if "nav_view" not in st.session_state:
@@ -457,6 +511,10 @@ if st.session_state["nav_view"] == "🎓 Workspace":
                         st.session_state["quiz_result"] = quiz_res
                         st.session_state["quiz_submitted"] = False
                         st.session_state["quiz_answers"] = {}
+                        st.session_state["quiz_current_index"] = 0
+                        st.session_state["quiz_question_answered"] = False
+                        st.session_state["quiz_completed"] = False
+                        st.session_state["quiz_history_results"] = []
                     except Exception:
                         st.session_state["quiz_result"] = None
 
@@ -752,6 +810,9 @@ if st.session_state["nav_view"] == "🎓 Workspace":
                             for uc in val_res.get("unsupported_claims", []):
                                 st.warning(f"⚠️ {uc}")
 
+                st.markdown("---")
+                st.info("🧠 **Ready to test your understanding?** Switch to the **🎓 Quiz & Practice** tab to start your 3-question learning checkpoint!")
+
             # ── 6. EXECUTION & FLOW PANEL ─────────────────────────────
             with tab_trace:
                 st.markdown('<span class="prov-badge trace">⚙️ Deterministic Execution Sandbox</span>', unsafe_allow_html=True)
@@ -855,97 +916,188 @@ if st.session_state["nav_view"] == "🎓 Workspace":
                             for cd in conds:
                                 st.caption(f"• `{cd.get('condition_type')}` (L{cd.get('line_start')}–L{cd.get('line_end')})")
 
-            # ── 8. QUIZ & PRACTICE PANEL ──────────────────────────────
+            # ── 8. QUIZ & PRACTICE PANEL (Interactive Learning Checkpoint) ──
             with tab_quiz:
-                st.markdown('<span class="prov-badge quiz">🎓 Interactive Code-Learning</span>', unsafe_allow_html=True)
+                st.markdown('<span class="prov-badge quiz">🎓 Interactive Learning Checkpoint</span>', unsafe_allow_html=True)
                 quiz_data = st.session_state.get("quiz_result")
 
                 if not quiz_data:
-                    st.info("ℹ️ Interactive quiz is being synthesized or not available for this snippet.")
+                    st.info("ℹ️ Interactive quiz is being synthesized or not available for this snippet. Click **✨ Analyze Code** to generate questions.")
                 else:
-                    if quiz_data.get("beginner_explanation"):
-                        st.markdown(f"💡 **Key Concept:** {quiz_data['beginner_explanation']}")
-
-                    if quiz_data.get("common_mistakes"):
-                        with st.expander("⚠️ Common Mistakes for this Pattern", expanded=False):
-                            for cm in quiz_data["common_mistakes"]:
-                                st.caption(f"• {cm}")
-
                     q_list = quiz_data.get("questions", [])
-                    is_sub = st.session_state.get("quiz_submitted", False)
+                    total_q = len(q_list)
 
-                    st.markdown(f"##### Questions ({len(q_list)} total)")
-                    for qi, q in enumerate(q_list):
+                    if not q_list:
+                        st.info("ℹ️ No specific checkpoint questions generated for this snippet.")
+                    elif st.session_state.get("quiz_completed", False):
+                        # ── Checkpoint Summary Screen ─────────────────────────
+                        st.markdown("### 🎯 Learning Checkpoint Complete!")
+
+                        results = st.session_state.get("quiz_history_results", [])
+                        correct_items = [r for r in results if r.get("is_correct")]
+                        missed_items = [r for r in results if not r.get("is_correct")]
+
+                        score = len(correct_items)
+                        total = len(results) if results else total_q
+                        pct = int((score / total) * 100) if total else 0
+
+                        col_s1, col_s2, col_s3 = st.columns(3)
+                        col_s1.metric("Final Score", f"{score} / {total}")
+                        col_s2.metric("Accuracy", f"{pct}%")
+                        status_tag = "Mastered 🎉" if pct >= 80 else ("Review Recommended 💡" if pct < 60 else "Good Progress 👍")
+                        col_s3.metric("Status", status_tag)
+
+                        st.markdown("---")
+
+                        # Concepts Understood
+                        understood_concepts = sorted(list(set(r.get("concept", "General") for r in correct_items if r.get("concept"))))
+                        st.markdown("##### ✅ Concepts Understood")
+                        if understood_concepts:
+                            u_badges = " ".join([f'<span class="concept-tag understood">✓ {c}</span>' for c in understood_concepts])
+                            st.markdown(u_badges, unsafe_allow_html=True)
+                        else:
+                            st.caption("Keep practicing to reinforce the core concepts.")
+
+                        st.markdown("##### 🔄 Concepts That Need Revision")
+                        revision_concepts = sorted(list(set(r.get("concept", "General") for r in missed_items if r.get("concept"))))
+                        if revision_concepts:
+                            r_badges = " ".join([f'<span class="concept-tag revision">⚠ {c}</span>' for c in revision_concepts])
+                            st.markdown(r_badges, unsafe_allow_html=True)
+
+                            with st.expander("Review Missed Questions & Explanations", expanded=True):
+                                for item in missed_items:
+                                    st.markdown(f"**Question:** {item.get('question')}")
+                                    st.markdown(f"• Correct Answer: **{item.get('correct_answer')}** · Your Choice: ~~{item.get('user_answer')}~~")
+                                    st.info(f"💡 {item.get('explanation')}")
+                                    st.markdown("---")
+                        else:
+                            st.success("🌟 Outstanding! You understood all concepts tested in this code snippet.")
+
+                        if quiz_data.get("final_takeaway"):
+                            st.markdown(f"> **🎯 Final Takeaway:** {quiz_data['final_takeaway']}")
+
+                        # Retake Checkpoint
+                        if st.button("🔄 Retake Checkpoint", type="primary", use_container_width=True, key="retake_checkpoint_btn"):
+                            st.session_state["quiz_current_index"] = 0
+                            st.session_state["quiz_question_answered"] = False
+                            st.session_state["quiz_completed"] = False
+                            st.session_state["quiz_user_answers"] = {}
+                            st.session_state["quiz_history_results"] = []
+                            st.rerun()
+
+                    else:
+                        # ── Single Question Active Checkpoint ─────────────────
+                        current_idx = st.session_state.get("quiz_current_index", 0)
+                        if current_idx >= total_q:
+                            current_idx = total_q - 1
+                            st.session_state["quiz_current_index"] = current_idx
+
+                        q = q_list[current_idx]
+                        q_id = q.get("id", f"q{current_idx}")
                         q_type = q.get("question_type", "comprehension")
-                        t_badge = "🐛 Debugging" if q_type == "debugging" else ("🔮 Predict Output" if q_type == "predict_output" else "🧠 Comprehension")
-                        st.markdown(f"**Q{qi + 1}. [{t_badge}]** {q.get('question') or q.get('text')}")
+                        q_badge = "🐛 Debugging Challenge" if q_type == "debugging" else ("🔮 Predict the Output" if q_type == "predict_output" else "🧠 Concept Check")
+                        q_concept = q.get("concept", "General")
+                        ref_lines = q.get("referenced_lines", [])
 
-                        if q.get("referenced_lines"):
-                            st.caption(f"📍 Line(s): `{q.get('referenced_lines')}` | Concept: `{q.get('concept', 'General')}`")
+                        # Progress Bar
+                        progress_val = current_idx / total_q
+                        st.progress(progress_val)
+                        st.caption(f"Question **{current_idx + 1}** of **{total_q}** · {q_badge} · Concept: **{q_concept}**")
+
+                        # Question Card
+                        st.markdown(f"#### {q.get('question') or q.get('text')}")
+
+                        # Referenced code snippet if available
+                        if ref_lines:
+                            code_lines = (code_input or "").splitlines()
+                            ref_snippets = []
+                            for rl in ref_lines:
+                                if 0 <= rl - 1 < len(code_lines):
+                                    ref_snippets.append(f"Line {rl}: {code_lines[rl - 1]}")
+                            if ref_snippets:
+                                st.caption("📍 Referenced Code:")
+                                st.code("\n".join(ref_snippets), language=st.session_state.get("selected_language", "python"))
 
                         opts = q.get("options", [])
                         opt_ids = [opt["id"] for opt in opts]
+                        corr = q.get("correct_answer") or q.get("correct_option_id")
 
-                        if not is_sub:
-                            sel = st.radio(
-                                f"Q{qi+1} Choice:",
+                        # State: Answering vs. Feedback
+                        is_answered = st.session_state.get("quiz_question_answered", False)
+
+                        if not is_answered:
+                            chosen = st.radio(
+                                "Select your answer:",
                                 options=opt_ids,
                                 format_func=lambda x, options=opts: next((f"{o['id']}) {o['text']}" for o in options if o['id'] == x), x),
-                                key=f"quiz_opt_{qi}",
+                                key=f"active_choice_{q_id}_{current_idx}",
                                 label_visibility="collapsed",
                             )
-                            st.session_state["quiz_answers"][q["id"]] = sel
+
+                            if st.button("Submit Answer", type="primary", use_container_width=True, key=f"btn_sub_{q_id}"):
+                                is_correct = (chosen == corr)
+                                st.session_state["quiz_user_answers"][q_id] = chosen
+                                st.session_state["quiz_question_answered"] = True
+                                st.session_state["quiz_history_results"].append({
+                                    "id": q_id,
+                                    "question": q.get("question") or q.get("text"),
+                                    "concept": q_concept,
+                                    "referenced_lines": ref_lines,
+                                    "user_answer": chosen,
+                                    "correct_answer": corr,
+                                    "is_correct": is_correct,
+                                    "explanation": q.get("explanation", ""),
+                                })
+                                st.rerun()
+
                         else:
-                            u_ans = st.session_state["quiz_answers"].get(q["id"], "")
-                            c_ans = q.get("correct_answer") or q.get("correct_option_id")
+                            # Immediate Feedback Screen
+                            user_ans = st.session_state["quiz_user_answers"].get(q_id, "")
+                            is_correct = (user_ans == corr)
+
                             for o in opts:
-                                if o["id"] == c_ans:
-                                    st.markdown(f"✅ **{o['id']}) {o['text']}** *(Correct)*")
-                                elif o["id"] == u_ans and u_ans != c_ans:
-                                    st.markdown(f"❌ ~~{o['id']}) {o['text']}~~ *(Your answer)*")
+                                if o["id"] == corr:
+                                    st.markdown(f"✅ **{o['id']}) {o['text']}** *(Correct Answer)*")
+                                elif o["id"] == user_ans and not is_correct:
+                                    st.markdown(f"❌ ~~{o['id']}) {o['text']}~~ *(Your Selection)*")
                                 else:
                                     st.markdown(f"⬜ {o['id']}) {o['text']}")
-                            st.info(f"💡 {q.get('explanation', '')}")
-                        st.markdown("---")
 
-                    if not is_sub:
-                        if st.button("📩 Submit Answers", type="primary", use_container_width=True, key="submit_quiz_btn"):
-                            st.session_state["quiz_submitted"] = True
-                            try:
-                                client.submit_learning_answers(
-                                    code=code_input,
-                                    language=st.session_state["selected_language"],
-                                    answers=st.session_state["quiz_answers"],
-                                    questions_payload=q_list,
-                                )
-                            except Exception:
-                                pass
-                            st.rerun()
-                    else:
-                        # Deterministic Score
-                        sc = sum(1 for q in q_list if st.session_state["quiz_answers"].get(q["id"]) == (q.get("correct_answer") or q.get("correct_option_id")))
-                        pct = int((sc / len(q_list)) * 100) if q_list else 0
+                            if is_correct:
+                                st.markdown("""
+<div class="quiz-feedback-box correct">
+    🎉 <strong>Correct!</strong> Well reasoned.
+</div>
+""", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"""
+<div class="quiz-feedback-box incorrect">
+    ❌ <strong>Incorrect.</strong> The correct answer is <strong>Option {corr}</strong>.
+</div>
+""", unsafe_allow_html=True)
 
-                        c1, c2 = st.columns(2)
-                        c1.metric("Score", f"{sc}/{len(q_list)}")
-                        c2.metric("Accuracy", f"{pct}%")
+                            st.markdown(f"💡 **Explanation:** {q.get('explanation', '')}")
+                            st.caption(f"🏷️ Tested Concept: **{q_concept}**" + (f" · Relevant Line(s): `{ref_lines}`" if ref_lines else ""))
 
-                        # Concept Mastery
-                        prog = client.get_learner_progress()
-                        if prog:
-                            st.markdown("##### 📈 Concept Mastery")
-                            p_cols = st.columns(min(len(prog), 3))
-                            for pi, p_item in enumerate(prog):
-                                with p_cols[pi % len(p_cols)]:
-                                    st.metric(label=p_item["concept"], value=f"{p_item['mastery']}%")
-
-                        if st.button("🔄 Retake Quiz", key="retake_quiz_btn"):
-                            st.session_state["quiz_submitted"] = False
-                            st.session_state["quiz_answers"] = {}
-                            st.rerun()
-
-                    if quiz_data.get("final_takeaway"):
-                        st.markdown(f"🎯 **Final Takeaway:** {quiz_data['final_takeaway']}")
+                            # Next or Finish Action
+                            if current_idx + 1 < total_q:
+                                if st.button("Next Question →", type="primary", use_container_width=True, key=f"btn_nxt_{q_id}"):
+                                    st.session_state["quiz_current_index"] += 1
+                                    st.session_state["quiz_question_answered"] = False
+                                    st.rerun()
+                            else:
+                                if st.button("Finish Checkpoint & View Results 🏁", type="primary", use_container_width=True, key=f"btn_fin_{q_id}"):
+                                    st.session_state["quiz_completed"] = True
+                                    try:
+                                        client.submit_learning_answers(
+                                            code=code_input,
+                                            language=st.session_state["selected_language"],
+                                            answers=st.session_state["quiz_user_answers"],
+                                            questions_payload=q_list,
+                                        )
+                                    except Exception:
+                                        pass
+                                    st.rerun()
 
             # ── 9. REFERENCE DOCS PANEL ───────────────────────────────
             with tab_docs:
