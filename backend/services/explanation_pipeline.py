@@ -405,6 +405,7 @@ class ExplanationPipeline:
                         hints=hints,
                     ),
                     quiz_response=None,
+                    user_id=request.user_id,
                 )
                 record_id = sub.id
                 created_at = sub.created_at

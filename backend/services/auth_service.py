@@ -96,3 +96,32 @@ class AuthService:
             return None
 
         return user
+
+    @classmethod
+    def create_access_token(cls, user_id: int, username: str) -> str:
+        """Generate a cryptographically signed, tamper-proof session token."""
+        from itsdangerous import URLSafeTimedSerializer
+        from backend.config import get_settings
+
+        settings = get_settings()
+        serializer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="code-lore-session")
+        return serializer.dumps({"user_id": user_id, "username": username})
+
+    @classmethod
+    def verify_access_token(cls, token: str, max_age: int = 86400 * 30) -> dict | None:
+        """Verify session token signature and expiration. Returns payload dict or None."""
+        if not token or not isinstance(token, str):
+            return None
+        from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+        from backend.config import get_settings
+
+        settings = get_settings()
+        serializer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="code-lore-session")
+        try:
+            payload = serializer.loads(token, max_age=max_age)
+            if isinstance(payload, dict) and "user_id" in payload:
+                return payload
+            return None
+        except (BadSignature, SignatureExpired, Exception):
+            return None
+

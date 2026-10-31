@@ -64,3 +64,25 @@ def test_password_policy_rejections(auth_service: AuthService):
     auth_service.register_user("duplicate_user", "validPass123!")
     with pytest.raises(ValueError, match="already registered"):
         auth_service.register_user("duplicate_user", "anotherPass123!")
+
+
+def test_session_token_generation_and_verification(auth_service: AuthService):
+    """Verify cryptographic session token generation, verification, and tampering rejection."""
+    token = auth_service.create_access_token(user_id=42, username="test_learner")
+    assert isinstance(token, str)
+    assert len(token) > 20
+
+    # Successful verification
+    payload = auth_service.verify_access_token(token)
+    assert payload is not None
+    assert payload["user_id"] == 42
+    assert payload["username"] == "test_learner"
+
+    # Tampered token rejection
+    tampered = token[:-4] + "fake"
+    assert auth_service.verify_access_token(tampered) is None
+
+    # Invalid string / empty token rejection
+    assert auth_service.verify_access_token("") is None
+    assert auth_service.verify_access_token("completely_invalid_garbage") is None
+

@@ -44,7 +44,20 @@ def test_explain_endpoint(client: TestClient) -> None:
 
 
 def test_history_endpoints(client: TestClient) -> None:
-    # First create an explanation
+    # Unauthenticated history access is blocked
+    unauth_res = client.get("/api/v1/history")
+    assert unauth_res.status_code == 401
+
+    # Register and get session token
+    user_res = client.post(
+        "/api/v1/auth/signup",
+        json={"username": "test_history_user", "password": "SecurePassword123!"},
+    )
+    assert user_res.status_code == 200
+    token = user_res.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create an explanation with authenticated headers
     client.post(
         "/api/v1/explain",
         json={
@@ -53,25 +66,36 @@ def test_history_endpoints(client: TestClient) -> None:
             "level": "Intermediate",
             "save_history": True,
         },
+        headers=headers,
     )
 
     # List history
-    history_res = client.get("/api/v1/history")
+    history_res = client.get("/api/v1/history", headers=headers)
     assert history_res.status_code == 200
     items = history_res.json()
     assert len(items) >= 1
 
     item_id = items[0]["id"]
     # Get by ID
-    item_res = client.get(f"/api/v1/history/{item_id}")
+    item_res = client.get(f"/api/v1/history/{item_id}", headers=headers)
     assert item_res.status_code == 200
     assert item_res.json()["id"] == item_id
 
 
 def test_history_not_found(client: TestClient) -> None:
-    response = client.get("/api/v1/history/999999")
+    # Unauthenticated gets 401
+    assert client.get("/api/v1/history/999999").status_code == 401
+
+    # Authenticated non-existent ID gets 404
+    user_res = client.post(
+        "/api/v1/auth/signup",
+        json={"username": "not_found_user", "password": "SecurePassword123!"},
+    )
+    token = user_res.json()["token"]
+    response = client.get("/api/v1/history/999999", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
+
 
 
 def test_explain_empty_code_validation(client: TestClient) -> None:

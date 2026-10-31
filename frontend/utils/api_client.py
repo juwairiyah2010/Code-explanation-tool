@@ -12,11 +12,25 @@ else:
 
 
 class APIClient:
-    """Typed HTTP client wrapping every backend endpoint."""
+    """Typed HTTP client wrapping every backend endpoint with secure session handling."""
 
-    def __init__(self, base_url: str = BASE_URL, timeout: float = 30.0):
+    def __init__(self, base_url: str = BASE_URL, timeout: float = 30.0, token: str | None = None):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.token: str | None = token
+
+    def set_token(self, token: str | None) -> None:
+        """Update authenticated session token."""
+        self.token = token
+
+    def _auth_headers(self, additional: dict[str, str] | None = None) -> dict[str, str]:
+        """Construct headers including Authorization bearer token when session is active."""
+        headers: dict[str, str] = {}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        if additional:
+            headers.update(additional)
+        return headers
 
     # ── Health ────────────────────────────────────────────────────────
     def check_health(self) -> dict[str, Any] | None:
@@ -63,7 +77,7 @@ class APIClient:
             }
             if filename:
                 payload["filename"] = filename
-            res = c.post(f"{self.base_url}/explain", json=payload)
+            res = c.post(f"{self.base_url}/explain", json=payload, headers=self._auth_headers())
             res.raise_for_status()
             return res.json()
 
@@ -131,7 +145,7 @@ class APIClient:
                 "questions_payload": questions_payload,
                 "user_id": user_id,
             }
-            res = c.post(f"{self.base_url}/learning/submit", json=payload)
+            res = c.post(f"{self.base_url}/learning/submit", json=payload, headers=self._auth_headers())
             res.raise_for_status()
             return res.json()
 
@@ -139,7 +153,7 @@ class APIClient:
         try:
             with httpx.Client(timeout=self.timeout) as c:
                 params = {"user_id": user_id} if user_id else {}
-                res = c.get(f"{self.base_url}/learning/progress", params=params)
+                res = c.get(f"{self.base_url}/learning/progress", params=params, headers=self._auth_headers())
                 if res.status_code == 200:
                     return res.json()
         except Exception:
@@ -153,6 +167,7 @@ class APIClient:
                 res = c.get(
                     f"{self.base_url}/history",
                     params={"limit": limit, "offset": offset},
+                    headers=self._auth_headers(),
                 )
                 if res.status_code == 200:
                     return res.json()
@@ -163,7 +178,7 @@ class APIClient:
     def get_history_item(self, record_id: int) -> dict[str, Any] | None:
         try:
             with httpx.Client(timeout=self.timeout) as c:
-                res = c.get(f"{self.base_url}/history/{record_id}")
+                res = c.get(f"{self.base_url}/history/{record_id}", headers=self._auth_headers())
                 if res.status_code == 200:
                     return res.json()
         except Exception:
@@ -217,18 +232,48 @@ class APIClient:
             return {"documents": 0, "chunks": 0}
         return {"documents": 0, "chunks": 0}
 
-    # ── Auth ─────────────────────────────────────────────────────────
+    # ── Auth & Profile ───────────────────────────────────────────────
     def signup(self, username: str, password: str) -> dict[str, Any]:
+        """Register a new user account. Returns user data with token or raises ValueError."""
         with httpx.Client(timeout=self.timeout) as c:
             payload = {"username": username, "password": password}
             res = c.post(f"{self.base_url}/auth/signup", json=payload)
-            res.raise_for_status()
-            return res.json()
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("token"):
+                    self.set_token(data["token"])
+                return data
+            try:
+                err_detail = res.json().get("detail", res.text)
+            except Exception:
+                err_detail = res.text
+            raise ValueError(err_detail)
 
     def login(self, username: str, password: str) -> dict[str, Any]:
+        """Authenticate user credentials. Returns user data with token or raises ValueError."""
         with httpx.Client(timeout=self.timeout) as c:
             payload = {"username": username, "password": password}
             res = c.post(f"{self.base_url}/auth/login", json=payload)
-            res.raise_for_status()
-            return res.json()
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("token"):
+                    self.set_token(data["token"])
+                return data
+            try:
+                err_detail = res.json().get("detail", res.text)
+            except Exception:
+                err_detail = res.text
+            raise ValueError(err_detail)
+
+    def get_profile(self) -> dict[str, Any] | None:
+        """Fetch current authenticated user profile."""
+        try:
+            with httpx.Client(timeout=self.timeout) as c:
+                res = c.get(f"{self.base_url}/auth/me", headers=self._auth_headers())
+                if res.status_code == 200:
+                    return res.json()
+        except Exception:
+            return None
+        return None
+
 

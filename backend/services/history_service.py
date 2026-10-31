@@ -19,9 +19,11 @@ class HistoryService:
     def __init__(self, submission_repo: SubmissionRepository):
         self.repo = submission_repo
 
-    def list_history(self, limit: int = 10, offset: int = 0) -> list[HistorySummaryItem]:
-        """Fetch and serialize recent submission summaries."""
-        submissions = self.repo.get_history(limit=limit, offset=offset)
+    def list_history(
+        self, limit: int = 10, offset: int = 0, user_id: int | None = None
+    ) -> list[HistorySummaryItem]:
+        """Fetch and serialize recent submission summaries for a user."""
+        submissions = self.repo.get_history(limit=limit, offset=offset, user_id=user_id)
         result = []
         for sub in submissions:
             result.append(
@@ -36,9 +38,11 @@ class HistoryService:
             )
         return result
 
-    def get_history_detail(self, record_id: int) -> HistoryDetailResponse | None:
-        """Fetch full historical submission details by record ID."""
-        record = self.repo.get_submission_by_id(record_id)
+    def get_history_detail(
+        self, record_id: int, user_id: int | None = None
+    ) -> HistoryDetailResponse | None:
+        """Fetch full historical submission details by record ID for a user."""
+        record = self.repo.get_submission_by_id(record_id, user_id=user_id)
         if not record:
             return None
 

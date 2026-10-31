@@ -14,13 +14,15 @@ class SubmissionRepository:
         level: str,
         ast_summary: str | None,
         llm_result,  # LLMExplanationResult
-        quiz_response=None # QuizResponse (optional)
+        quiz_response=None, # QuizResponse (optional)
+        user_id: int | None = None,
     ) -> Submission:
         
         # We start a transaction natively within SQLAlchemy flush/commit
         # LLMExplanationResult fields: summary, blocks, concepts, algorithm_steps, complexity, hints
         
         submission = Submission(
+            user_id=user_id,
             code=code,
             language=language,
             level=level,
@@ -72,8 +74,11 @@ class SubmissionRepository:
         self.db.refresh(submission)
         return submission
 
-    def get_history(self, limit: int = 10, offset: int = 0):
-        stmt = select(Submission).order_by(Submission.created_at.desc()).offset(offset).limit(limit)
+    def get_history(self, limit: int = 10, offset: int = 0, user_id: int | None = None):
+        stmt = select(Submission)
+        if user_id is not None:
+            stmt = stmt.where(Submission.user_id == user_id)
+        stmt = stmt.order_by(Submission.created_at.desc()).offset(offset).limit(limit)
         results = self.db.execute(stmt).scalars().all()
         return results
         
@@ -81,8 +86,10 @@ class SubmissionRepository:
         stmt = select(Concept).where(Concept.name == name).order_by(Concept.id.desc()).offset(offset).limit(limit)
         return self.db.execute(stmt).scalars().all()
     
-    def get_submission_by_id(self, submission_id: int):
+    def get_submission_by_id(self, submission_id: int, user_id: int | None = None):
         stmt = select(Submission).where(Submission.id == submission_id)
+        if user_id is not None:
+            stmt = stmt.where(Submission.user_id == user_id)
         return self.db.execute(stmt).scalars().first()
         
     def delete_submission(self, submission_id: int) -> bool:

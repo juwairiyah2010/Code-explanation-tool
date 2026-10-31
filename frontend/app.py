@@ -257,6 +257,45 @@ section[data-testid="stSidebar"] {
     color: #e3b341;
     border: 1px solid rgba(210, 153, 34, 0.3);
 }
+
+/* Authentication & Profile Styles */
+.auth-wrapper {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.auth-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+}
+.auth-sub {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-bottom: 18px;
+}
+.user-profile-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 1.5rem;
+}
+.guest-banner {
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.08) 0%, rgba(163, 113, 247, 0.08) 100%);
+    border: 1px solid rgba(88, 166, 255, 0.25);
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin-bottom: 1.2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -363,8 +402,18 @@ if "selected_language" not in st.session_state:
     st.session_state["selected_language"] = "python"
 if "selected_level" not in st.session_state:
     st.session_state["selected_level"] = "Beginner"
+if "user" not in st.session_state:
+    st.session_state["user"] = None
+if "auth_mode" not in st.session_state:
+    st.session_state["auth_mode"] = "Login"
+if "show_auth_view" not in st.session_state:
+    st.session_state["show_auth_view"] = False
+if "auth_notice" not in st.session_state:
+    st.session_state["auth_notice"] = None
 
 client = APIClient()
+if st.session_state.get("user") and st.session_state["user"].get("token"):
+    client.set_token(st.session_state["user"]["token"])
 
 # ── Sample Selection Callback ─────────────────────────────────────────
 def on_sample_select():
@@ -383,15 +432,44 @@ with st.sidebar:
     st.caption("Deterministic Code Explanation & Interactive Learning")
     st.divider()
 
-    # Simple, clear navigation
+    # User Account / Auth Widget
+    if st.session_state.get("user"):
+        uname = st.session_state["user"]["username"]
+        st.markdown(f"👤 **Learner:** `{uname}`")
+        if st.button("🚪 Log Out", key="sb_btn_logout", use_container_width=True):
+            st.session_state["user"] = None
+            client.set_token(None)
+            st.session_state["show_auth_view"] = False
+            st.session_state["nav_view"] = "🎓 Workspace"
+            st.session_state["auth_notice"] = "You have been logged out successfully."
+            st.rerun()
+    else:
+        st.caption("Guest Session")
+        if st.button("🚀 Start Learning / Log In", key="sb_btn_auth_open", type="primary", use_container_width=True):
+            st.session_state["show_auth_view"] = True
+            st.session_state["auth_mode"] = "Login"
+            st.rerun()
+
+    st.divider()
+
+    # Clear navigation with Profile option
+    nav_options = ["🎓 Workspace", "📜 History", "👤 Profile"]
+    curr_nav = st.session_state.get("nav_view", "🎓 Workspace")
+    if curr_nav not in nav_options:
+        curr_nav = "🎓 Workspace"
     nav_choice = st.radio(
         "Navigation",
-        options=["🎓 Workspace", "📜 History"],
-        index=0 if st.session_state.get("nav_view") == "🎓 Workspace" else 1,
+        options=nav_options,
+        index=nav_options.index(curr_nav),
         label_visibility="collapsed",
         key="nav_radio",
     )
+    if st.session_state.get("show_auth_view"):
+        # If user explicitly navigated via radio, dismiss auth modal view
+        if nav_choice != curr_nav:
+            st.session_state["show_auth_view"] = False
     st.session_state["nav_view"] = nav_choice
+
 
     if nav_choice == "🎓 Workspace":
         st.divider()
@@ -431,10 +509,173 @@ with st.sidebar:
 
 
 # ════════════════════════════════════════════════════════════════════
+# VIEW 0 – AUTHENTICATION FLOW (LOGIN & SIGN UP)
+# ════════════════════════════════════════════════════════════════════
+if st.session_state.get("show_auth_view"):
+    col_l, col_auth, col_r = st.columns([1, 2, 1])
+    with col_auth:
+        st.markdown('<div class="auth-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="auth-title">📜 Code Lore</div>', unsafe_allow_html=True)
+        st.markdown('<div class="auth-sub">Deterministic Code Explanation & Interactive Learning</div>', unsafe_allow_html=True)
+
+        mode_choice = st.radio(
+            "Authentication Mode",
+            options=["Login", "Sign Up"],
+            index=0 if st.session_state.get("auth_mode") == "Login" else 1,
+            horizontal=True,
+            key="auth_mode_selector",
+        )
+        st.session_state["auth_mode"] = mode_choice
+
+        # ── 1. LOGIN SCREEN ───────────────────────────────────────────
+        if mode_choice == "Login":
+            st.markdown("#### Login")
+            login_identity = st.text_input(
+                "Email/username",
+                key="auth_login_identity",
+                placeholder="e.g. coder_alice or alice@example.com",
+            )
+            login_password = st.text_input(
+                "Password",
+                type="password",
+                key="auth_login_password",
+                placeholder="Enter your password",
+            )
+
+            col_btn, col_link = st.columns([1, 1])
+            with col_btn:
+                do_login = st.button("Login", key="btn_submit_login", type="primary", use_container_width=True)
+            with col_link:
+                if st.button("Link to Sign Up", key="link_to_signup", use_container_width=True):
+                    st.session_state["auth_mode"] = "Sign Up"
+                    st.rerun()
+
+            if do_login:
+                clean_identity = login_identity.strip()
+                if not clean_identity:
+                    st.error("Please enter a valid email or username.")
+                elif "@" in clean_identity and ("." not in clean_identity.split("@")[-1] or not clean_identity.split("@")[-1].strip()):
+                    st.error("Please enter a valid email.")
+                elif len(login_password) < 8:
+                    st.error("Password must contain at least 8 characters.")
+                else:
+                    with st.spinner("Logging in..."):
+                        try:
+                            res = client.login(username=clean_identity, password=login_password)
+                            st.session_state["user"] = {
+                                "id": res["id"],
+                                "username": res["username"],
+                                "token": res.get("token"),
+                            }
+                            client.set_token(res.get("token"))
+                            st.session_state["show_auth_view"] = False
+                            st.session_state["nav_view"] = "🎓 Workspace"
+                            st.session_state["auth_notice"] = f"Welcome back, {res['username']}! Redirecting to Code Lore workspace..."
+                            st.rerun()
+                        except Exception:
+                            st.error("Incorrect email or password.")
+
+        # ── 2. SIGN UP SCREEN ──────────────────────────────────────────
+        else:
+            st.markdown("#### Sign Up")
+            signup_name = st.text_input("Name", key="auth_signup_name", placeholder="e.g. Alice Chen")
+            signup_identity = st.text_input(
+                "Email/username",
+                key="auth_signup_identity",
+                placeholder="e.g. coder_alice or alice@example.com",
+            )
+            signup_password = st.text_input(
+                "Password",
+                type="password",
+                key="auth_signup_password",
+                placeholder="At least 8 characters",
+            )
+            signup_confirm = st.text_input(
+                "Confirm password",
+                type="password",
+                key="auth_signup_confirm",
+                placeholder="Re-enter your password",
+            )
+
+            col_s_btn, col_s_link = st.columns([1, 1])
+            with col_s_btn:
+                do_signup = st.button("Sign Up", key="btn_submit_signup", type="primary", use_container_width=True)
+            with col_s_link:
+                if st.button("Link to Login", key="link_to_login", use_container_width=True):
+                    st.session_state["auth_mode"] = "Login"
+                    st.rerun()
+
+            if do_signup:
+                clean_name = signup_name.strip()
+                clean_identity = signup_identity.strip()
+                if not clean_name:
+                    st.error("Please enter your name.")
+                elif not clean_identity:
+                    st.error("Please enter a valid email or username.")
+                elif "@" in clean_identity and ("." not in clean_identity.split("@")[-1] or not clean_identity.split("@")[-1].strip()):
+                    st.error("Please enter a valid email.")
+                elif len(clean_identity) < 3:
+                    st.error("Username must contain at least 3 characters.")
+                elif len(signup_password) < 8:
+                    st.error("Password must contain at least 8 characters.")
+                elif signup_password != signup_confirm:
+                    st.error("Passwords do not match. Please re-enter your password.")
+                else:
+                    with st.spinner("Creating your account..."):
+                        try:
+                            res = client.signup(username=clean_identity, password=signup_password)
+                            st.session_state["user"] = {
+                                "id": res["id"],
+                                "username": res["username"],
+                                "token": res.get("token"),
+                            }
+                            client.set_token(res.get("token"))
+                            st.session_state["show_auth_view"] = False
+                            st.session_state["nav_view"] = "🎓 Workspace"
+                            st.session_state["auth_notice"] = f"Account created successfully! Welcome to Code Lore, {res['username']}."
+                            st.rerun()
+                        except ValueError as e:
+                            err_str = str(e).lower()
+                            if "already registered" in err_str or "exists" in err_str:
+                                st.error("This username or email is already registered. Please log in or choose another.")
+                            elif "8 characters" in err_str:
+                                st.error("Password must contain at least 8 characters.")
+                            else:
+                                st.error("Could not complete registration. Please check your information.")
+                        except Exception:
+                            st.error("Could not complete registration. Please try again later.")
+
+        st.divider()
+        if st.button("← Back to Workspace", key="auth_btn_cancel", use_container_width=True):
+            st.session_state["show_auth_view"] = False
+            st.session_state["nav_view"] = "🎓 Workspace"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ════════════════════════════════════════════════════════════════════
 # VIEW 1 – FOCUSED LEARNING WORKSPACE
 # ════════════════════════════════════════════════════════════════════
-if st.session_state["nav_view"] == "🎓 Workspace":
+elif st.session_state["nav_view"] == "🎓 Workspace":
+    if st.session_state.get("auth_notice"):
+        st.success(st.session_state["auth_notice"])
+        st.session_state["auth_notice"] = None
+
+    if not st.session_state.get("user"):
+        col_banner, col_b_btn = st.columns([8, 2])
+        with col_banner:
+            st.markdown(
+                '<div class="guest-banner"><span>💡 <strong>Guest Session:</strong> You can explore code explanations freely. Sign in to save analyses, record your history, and track concept mastery.</span></div>',
+                unsafe_allow_html=True,
+            )
+        with col_b_btn:
+            if st.button("🚀 Start Learning", key="ws_start_learning_banner_btn", type="primary", use_container_width=True):
+                st.session_state["show_auth_view"] = True
+                st.session_state["auth_mode"] = "Login"
+                st.rerun()
+
     col_editor, col_results = st.columns([5, 7], gap="large")
+
 
     # ─────────────────────────────────────────────────────────────────
     # LEFT PANE: 1. Code Editor & 4. Primary Analyze Action
@@ -1135,54 +1376,158 @@ if st.session_state["nav_view"] == "🎓 Workspace":
 # ════════════════════════════════════════════════════════════════════
 elif st.session_state["nav_view"] == "📜 History":
     st.markdown("## 📜 Submission History")
-    st.caption("Review past analyzed submissions and reload them into the learning workspace with one click.")
 
-    if not health:
-        st.error("🔴 Backend offline. Cannot load history.")
+    if not st.session_state.get("user"):
+        st.markdown(
+            """
+        <div class="user-profile-card">
+            <h4>🔒 Authentication Required</h4>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                Your submission history and saved analyses are private and protected.
+                Please log in or sign up to view and reload your past code analyses into the workspace.
+            </p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+        if st.button("🚀 Start Learning / Log In", key="history_gate_btn", type="primary"):
+            st.session_state["show_auth_view"] = True
+            st.session_state["auth_mode"] = "Login"
+            st.rerun()
     else:
-        with st.spinner("Loading history…"):
-            history_list = client.get_history(limit=50)
+        st.caption("Review past analyzed submissions and reload them into the learning workspace with one click.")
 
-        if history_list:
-            st.markdown(f"**{len(history_list)}** saved submissions:")
-            for item in history_list:
-                item_id = item.get("id", "?")
-                lang_h = item.get("language", "unknown").upper()
-                level_h = item.get("level", "")
-                created = item.get("created_at", "")[:19]
-                summary_preview = item.get("summary", "")
-
-                label = f"#{item_id} · {lang_h} · {level_h} · {created}"
-                if summary_preview:
-                    label += f" — {summary_preview[:60]}…"
-
-                with st.expander(label):
-                    detail = client.get_history_item(item_id)
-                    if detail:
-                        st.markdown(f"**Summary:** {detail.get('summary', 'No summary available.')}")
-                        saved_code = detail.get("code", "")
-                        if saved_code:
-                            st.code(saved_code, language=detail.get("language", "python"))
-
-                        if st.button(f"📥 Load #{item_id} into Workspace", key=f"load_h_{item_id}"):
-                            st.session_state["workspace_code_area"] = saved_code
-                            st.session_state["current_code"] = saved_code
-                            st.session_state["selected_language"] = detail.get("language", "python")
-                            st.session_state["selected_level"] = detail.get("level", "Beginner")
-                            st.session_state["explanation_result"] = {
-                                "id": detail.get("id"),
-                                "language": detail.get("language"),
-                                "level": detail.get("level"),
-                                "summary": detail.get("summary"),
-                                "blocks": detail.get("blocks", []),
-                                "concepts": detail.get("concepts", []),
-                                "complexity": (detail.get("explanation") or {}).get("complexity", {}),
-                                "hints": (detail.get("explanation") or {}).get("hints", []),
-                            }
-                            st.session_state["nav_view"] = "🎓 Workspace"
-                            st.success(f"Loaded submission #{item_id}! Redirecting to Workspace…")
-                            st.rerun()
-                    else:
-                        st.caption("Could not load details.")
+        if not health:
+            st.error("🔴 Backend offline. Cannot load history.")
         else:
-            st.info("No submissions saved yet. Analyze code in the Workspace to build your history.")
+            with st.spinner("Loading your history…"):
+                history_list = client.get_history(limit=50)
+
+            if history_list:
+                st.markdown(f"**{len(history_list)}** saved submissions for **{st.session_state['user']['username']}**:")
+                for item in history_list:
+                    item_id = item.get("id", "?")
+                    lang_h = item.get("language", "unknown").upper()
+                    level_h = item.get("level", "")
+                    created = item.get("created_at", "")[:19]
+                    summary_preview = item.get("summary", "")
+
+                    label = f"#{item_id} · {lang_h} · {level_h} · {created}"
+                    if summary_preview:
+                        label += f" — {summary_preview[:60]}…"
+
+                    with st.expander(label):
+                        detail = client.get_history_item(item_id)
+                        if detail:
+                            st.markdown(f"**Summary:** {detail.get('summary', 'No summary available.')}")
+                            saved_code = detail.get("code", "")
+                            if saved_code:
+                                st.code(saved_code, language=detail.get("language", "python"))
+
+                            if st.button(f"📥 Load #{item_id} into Workspace", key=f"load_h_{item_id}"):
+                                st.session_state["workspace_code_area"] = saved_code
+                                st.session_state["current_code"] = saved_code
+                                st.session_state["selected_language"] = detail.get("language", "python")
+                                st.session_state["selected_level"] = detail.get("level", "Beginner")
+                                st.session_state["explanation_result"] = {
+                                    "id": detail.get("id"),
+                                    "language": detail.get("language"),
+                                    "level": detail.get("level"),
+                                    "summary": detail.get("summary"),
+                                    "blocks": detail.get("blocks", []),
+                                    "concepts": detail.get("concepts", []),
+                                    "complexity": (detail.get("explanation") or {}).get("complexity", {}),
+                                    "hints": (detail.get("explanation") or {}).get("hints", []),
+                                }
+                                st.session_state["nav_view"] = "🎓 Workspace"
+                                st.success(f"Loaded submission #{item_id}! Redirecting to Workspace…")
+                                st.rerun()
+                        else:
+                            st.caption("Could not load details.")
+            else:
+                st.info("No submissions saved yet. Analyze code in the Workspace to build your history.")
+
+
+# ════════════════════════════════════════════════════════════════════
+# VIEW 3 – LEARNER PROFILE
+# ════════════════════════════════════════════════════════════════════
+elif st.session_state["nav_view"] == "👤 Profile":
+    st.markdown("## 👤 Learner Profile")
+
+    if not st.session_state.get("user"):
+        st.markdown(
+            """
+        <div class="user-profile-card">
+            <h4>🔒 Authentication Required</h4>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                Your learner profile and concept mastery tracking are private and protected.
+                Please log in or sign up to access your personalized learning model and statistics.
+            </p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+        if st.button("🚀 Start Learning / Log In", key="profile_gate_btn", type="primary"):
+            st.session_state["show_auth_view"] = True
+            st.session_state["auth_mode"] = "Login"
+            st.rerun()
+    else:
+        user = st.session_state["user"]
+        col_prof1, col_prof2 = st.columns([7, 3])
+        with col_prof1:
+            st.markdown(
+                f"""
+            <div class="user-profile-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h3 style="margin:0; color:var(--accent);">👤 {user.get('username')}</h3>
+                        <small style="color:var(--text-secondary);">User ID: #{user.get('id')} · Authenticated Session Active</small>
+                    </div>
+                    <div>
+                        <span class="prov-badge ai">Active Learner</span>
+                    </div>
+                </div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        with col_prof2:
+            if st.button("🚪 Log Out", key="profile_btn_logout", use_container_width=True):
+                st.session_state["user"] = None
+                client.set_token(None)
+                st.session_state["show_auth_view"] = False
+                st.session_state["nav_view"] = "🎓 Workspace"
+                st.session_state["auth_notice"] = "You have been logged out successfully."
+                st.rerun()
+
+        st.markdown("#### 🧠 Concept Mastery Model")
+        st.caption("Mastery percentages calculated deterministically from your interactive quiz completions.")
+
+        with st.spinner("Loading concept mastery…"):
+            progress_items = client.get_learner_progress()
+
+        if progress_items:
+            for item in progress_items:
+                c_name = item.get("concept", "Concept")
+                m_pct = float(item.get("mastery", 0.0))
+                att = item.get("total_attempted", 0)
+                cor = item.get("total_correct", 0)
+
+                col_c1, col_c2 = st.columns([3, 7])
+                with col_c1:
+                    st.markdown(f"**{c_name}**")
+                    st.caption(f"{cor}/{att} correct ({m_pct:.0f}%)")
+                with col_c2:
+                    st.progress(min(1.0, max(0.0, m_pct / 100.0)))
+        else:
+            st.info("No quiz attempts recorded yet. Analyze a code snippet and complete an interactive quiz to track your concept mastery!")
+
+        st.divider()
+        st.markdown("#### 📊 Submission Statistics")
+        hist = client.get_history(limit=100)
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.metric("Total Saved Analyses", len(hist))
+        with col_m2:
+            st.metric("Tracked Concepts", len(progress_items))
+

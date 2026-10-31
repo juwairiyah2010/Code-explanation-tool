@@ -14,5 +14,7 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
+    token: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+

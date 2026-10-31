@@ -1,8 +1,9 @@
 """Code explanation endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from backend.api.deps import get_explanation_service
+from backend.api.deps import get_explanation_service, get_optional_current_user
 from backend.core.security import rate_limit_expensive, sanitize_internal_error
+from backend.models.persistence import User
 from backend.schemas.explanation import ExplainCodeRequest, ExplainCodeResponse
 from backend.services.explanation_service import ExplanationService
 
@@ -17,9 +18,12 @@ router = APIRouter()
 )
 async def explain_code(
     request: ExplainCodeRequest,
+    current_user: User | None = Depends(get_optional_current_user),
     service: ExplanationService = Depends(get_explanation_service),
 ) -> ExplainCodeResponse:
     """Generate structured AI explanation for Python or JavaScript code snippets."""
+    if current_user and request.user_id is None:
+        request.user_id = current_user.id
     try:
         return await service.explain_code(request)
     except ValueError as e:

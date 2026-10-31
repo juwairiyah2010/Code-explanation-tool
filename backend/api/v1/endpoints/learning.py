@@ -50,6 +50,10 @@ async def generate_learning_material(
         )
 
 
+from backend.api.deps import get_optional_current_user
+from backend.models.persistence import User
+
+
 @router.post(
     "/submit",
     response_model=LearningEvaluationResponse,
@@ -59,11 +63,13 @@ async def generate_learning_material(
 )
 async def submit_learning_answers(
     request: SubmitAnswersRequest,
+    current_user: User | None = Depends(get_optional_current_user),
     learning_service: LearningService = Depends(get_learning_service),
     db: Session = Depends(get_db),
 ) -> LearningEvaluationResponse:
     try:
         repo = LearningRepository(db)
+        effective_user_id = current_user.id if current_user else request.user_id
 
         # If questions_payload is provided, evaluate directly; otherwise regenerate deterministic questions
         questions = request.questions_payload
@@ -77,7 +83,7 @@ async def submit_learning_answers(
             questions=questions,
             answers=request.answers,
             language=request.language,
-            user_id=request.user_id,
+            user_id=effective_user_id,
         )
     except Exception as e:
         logger.error(f"Error evaluating learning answers: {e}")
@@ -96,15 +102,19 @@ async def submit_learning_answers(
 )
 async def get_learner_progress(
     user_id: int | None = None,
+    current_user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ) -> list[ConceptMasteryItem]:
+    effective_user_id = current_user.id if current_user else user_id
     try:
         repo = LearningRepository(db)
         import asyncio
-        return await asyncio.to_thread(repo.get_learner_progress, user_id=user_id)
+        return await asyncio.to_thread(repo.get_learner_progress, user_id=effective_user_id)
     except Exception as e:
         logger.error(f"Error loading learner progress: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load learner progress: {str(e)}",
         )
+
+

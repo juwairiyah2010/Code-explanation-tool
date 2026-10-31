@@ -328,7 +328,9 @@ class ExplainCodeRequest(BaseModel):
     enable_trace: bool = Field(True, description="Whether to run execution trace if applicable")
     enable_rag: bool = Field(True, description="Whether to retrieve and ground explanation on RAG knowledge base")
     save_history: bool = Field(True, description="Whether to persist the explanation in SQLite")
+    user_id: int | None = Field(None, description="Optional authenticated user ID")
     learner_profile: LearnerProfile | None = Field(None, description="Learner profile details")
+
 
     @field_validator("code")
     @classmethod

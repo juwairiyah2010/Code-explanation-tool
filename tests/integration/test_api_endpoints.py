@@ -104,6 +104,9 @@ def test_auth_endpoints_integration(client: TestClient):
     )
     assert signup_res.status_code == 200
     assert signup_res.json()["username"] == "integration_user"
+    assert "token" in signup_res.json()
+    token = signup_res.json()["token"]
+    assert token is not None
 
     # 2. Login
     login_res = client.post(
@@ -112,13 +115,23 @@ def test_auth_endpoints_integration(client: TestClient):
     )
     assert login_res.status_code == 200
     assert login_res.json()["username"] == "integration_user"
+    assert login_res.json()["token"] is not None
 
-    # 3. Invalid Login
+    # 3. Authenticated profile endpoint /me
+    me_res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me_res.status_code == 200
+    assert me_res.json()["username"] == "integration_user"
+
+    # 4. Unauthenticated /me rejected
+    assert client.get("/api/v1/auth/me").status_code == 401
+
+    # 5. Invalid Login
     bad_login = client.post(
         "/api/v1/auth/login",
         json={"username": "integration_user", "password": "wrongPassword"},
     )
     assert bad_login.status_code == 400
+
 
 
 def test_rag_endpoints_integration(client: TestClient):
