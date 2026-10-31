@@ -111,6 +111,97 @@ section[data-testid="stSidebar"] {
     color: var(--accent);
 }
 
+/* Layer Titles */
+.layer-title {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 1.2rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Quick Understanding Card */
+.quick-card {
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.08) 0%, rgba(163, 113, 247, 0.08) 100%);
+    border: 1px solid rgba(88, 166, 255, 0.25);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 0.8rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--text-primary);
+}
+
+/* Interactive Step Card */
+.step-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+}
+.step-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.line-badge {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+
+/* Issue Cards */
+.issue-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent-orange);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+}
+.issue-box.error {
+    border-left-color: #f85149;
+    background: rgba(248, 81, 73, 0.06);
+}
+.issue-box.warning {
+    border-left-color: var(--accent-orange);
+    background: rgba(210, 153, 34, 0.06);
+}
+.issue-box.complexity {
+    border-left-color: var(--accent);
+    background: rgba(88, 166, 255, 0.06);
+}
+
+.clean-banner {
+    background: rgba(63, 185, 80, 0.1);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: #7ee787;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+/* Highlighted Line Box */
+.highlight-line-box {
+    background: rgba(88, 166, 255, 0.09);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+}
+
 /* Status dot */
 .status-dot {
     display: inline-block;
@@ -403,56 +494,263 @@ if st.session_state["nav_view"] == "🎓 Workspace":
                 "📚 Reference Docs",
             ])
 
-            # ── 5. EXPLANATION PANEL ──────────────────────────────────
+            # ── 5. EXPLANATION PANEL (Interactive Layered Design) ─────
             with tab_expl:
                 st.markdown('<span class="prov-badge ai">🤖 AI-Generated · Verified Grounded</span>', unsafe_allow_html=True)
 
-                # Grounding Verification Badge
-                val_res = expl_res.get("validation_result")
-                if val_res:
-                    is_val = val_res.get("valid", True)
-                    cov = int(val_res.get("coverage_score", 0.0) * 100)
-                    lvl = val_res.get("grounding_level", "Moderate")
-                    status_icon = "🟢" if is_val else "🟡"
-                    status_lbl = "Verified Grounded" if is_val else "Grounding Warnings Flagged"
+                code_lines = (code_input or "").splitlines()
 
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Grounding", f"{status_icon} {status_lbl}")
-                    m2.metric("Coverage", f"{cov}%")
-                    m3.metric("Referenced Lines", len(val_res.get("referenced_lines", [])))
+                # Visual Code Reference & Line Connector
+                selectable_lines = [
+                    f"Line {i+1}: {l.strip()[:40]}"
+                    for i, l in enumerate(code_lines)
+                    if l.strip()
+                ]
+                line_filter_options = ["🔍 All Logic Steps"] + selectable_lines
+                selected_line_filter = st.selectbox(
+                    "🎯 Highlight & Connect Code Line:",
+                    options=line_filter_options,
+                    index=0,
+                    key="expl_line_filter_sel",
+                    help="Select any code line to immediately inspect its focused explanation and detected constructs.",
+                )
 
-                    if val_res.get("unsupported_claims") or val_res.get("warnings"):
-                        with st.expander("🔍 Grounding Details & Disclosures", expanded=False):
-                            for claim in val_res.get("unsupported_claims", []):
-                                st.warning(f"⚠️ {claim}")
-                            for w in val_res.get("warnings", []):
-                                st.caption(f"ℹ️ {w}")
+                # If a specific line is selected, show focused line inspector
+                if selected_line_filter != "🔍 All Logic Steps":
+                    try:
+                        line_num = int(selected_line_filter.split(":")[0].replace("Line", "").strip())
+                    except Exception:
+                        line_num = 1
 
-                # Summary Card
-                st.markdown(f"> **Summary:**\n>\n> {expl_res.get('summary', 'No summary available.')}")
+                    code_content = code_lines[line_num - 1] if 0 <= line_num - 1 < len(code_lines) else ""
+                    st.markdown(f"""
+<div class="highlight-line-box">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span class="line-badge">Line {line_num}</span>
+        <small style="color: var(--text-secondary);">Direct Line Connection</small>
+    </div>
+    <code style="font-size: 0.9rem;">{code_content}</code>
+</div>
+""", unsafe_allow_html=True)
 
-                # Block-by-Block Breakdown
+                    # Look up line explanation
+                    line_items = expl_res.get("line_explanations", [])
+                    matched_line = next((item for item in line_items if item.get("line_number") == line_num), None)
+
+                    if matched_line:
+                        st.markdown(f"**Explanation:** {matched_line.get('explanation', '')}")
+                        if matched_line.get("ast_node"):
+                            st.caption(f"🌲 Syntax Construct: `{matched_line.get('ast_node')}`")
+                        if matched_line.get("uncertainty_note"):
+                            st.caption(f"ℹ️ {matched_line.get('uncertainty_note')}")
+                    else:
+                        # Fallback to enclosing block
+                        matched_block = next((b for b in expl_res.get("blocks", []) if b.get("line_start", 1) <= line_num <= b.get("line_end", b.get("line_start", 1))), None)
+                        if matched_block:
+                            st.markdown(f"**Belongs to:** **{matched_block.get('title', 'Block')}** (Lines {matched_block.get('line_start')}–{matched_block.get('line_end')})")
+                            st.markdown(f"{matched_block.get('explanation', '')}")
+                        else:
+                            st.caption("No specific line explanation was generated for this line.")
+
+                    # Line-specific findings
+                    line_issues = [
+                        iss for iss in expl_res.get("issues", [])
+                        if iss.get("line_number") == line_num
+                    ]
+                    line_hints = [
+                        h for h in (expl_res.get("ast_analysis") or {}).get("static_hints", [])
+                        if h.get("line_start") == line_num or h.get("line_number") == line_num
+                    ]
+                    if line_issues or line_hints:
+                        st.markdown("##### ⚠️ Findings on this Line:")
+                        for iss in line_issues:
+                            st.warning(f"**{iss.get('category', 'Issue').title()}:** {iss.get('description', '')}\n\n💡 *Fix: {iss.get('suggested_fix', 'None')}*")
+                        for h in line_hints:
+                            st.info(f"**[{h.get('rule_id', 'RULE')}]:** {h.get('message', '')}\n\n💡 *Fix: {h.get('suggestion', 'None')}*")
+
+                    st.markdown("---")
+
+                # ── Layer 1: Quick Understanding ──────────────────────
+                st.markdown('<div class="layer-title">💡 Quick Understanding</div>', unsafe_allow_html=True)
+                summary_text = expl_res.get("summary", "No summary available.")
+                st.markdown(f'<div class="quick-card">{summary_text}</div>', unsafe_allow_html=True)
+
+                # ── Layer 2: How It Works ─────────────────────────────
+                st.markdown('<div class="layer-title">🚶 How It Works</div>', unsafe_allow_html=True)
+
                 blocks = expl_res.get("blocks", [])
+                line_explanations = expl_res.get("line_explanations", [])
+
                 if blocks:
-                    st.markdown("##### 🧩 Block-by-Block Breakdown")
-                    for b in blocks:
+                    for i, b in enumerate(blocks):
                         ls = b.get("line_start", 1)
                         le = b.get("line_end", ls)
-                        with st.expander(f"**{b.get('title', 'Block')}** (Lines {ls}–{le})", expanded=True):
-                            st.markdown(b.get("explanation", ""))
+                        block_lines = code_lines[ls - 1:le] if code_lines else []
+                        code_preview = "\n".join(block_lines[:3]) if block_lines else ""
+                        if len(block_lines) > 3:
+                            code_preview += f"\n... ({len(block_lines) - 3} more lines)"
 
-                # Key Takeaways & Suggestions
-                takeaways = expl_res.get("key_takeaways", [])
-                if takeaways:
-                    st.markdown("##### 🎯 Key Takeaways")
-                    for tk in takeaways:
-                        st.markdown(f"- {tk}")
+                        full_text = b.get("explanation", "").strip()
+                        # Progressive disclosure: simple explanation first (first 2 sentences)
+                        sentences = full_text.split(". ")
+                        lead_explanation = ". ".join(sentences[:2])
+                        if not lead_explanation.endswith(".") and sentences:
+                            lead_explanation += "."
+                        extra_detail = ". ".join(sentences[2:]) if len(sentences) > 2 else ""
 
-                hints = expl_res.get("hints", [])
-                if hints:
-                    st.markdown("##### 💡 Improvement Suggestions")
-                    for h in hints:
-                        st.markdown(f"- {h}")
+                        line_label = f"Line {ls}" if ls == le else f"Lines {ls}–{le}"
+                        st.markdown(f"""
+<div class="step-card">
+    <div class="step-header">
+        <strong style="color: var(--text-primary); font-size: 0.92rem;">Step {i + 1}: {b.get('title', 'Logic Block')}</strong>
+        <span class="line-badge">{line_label}</span>
+    </div>
+    <div style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 6px;">
+        {lead_explanation}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+                        if code_preview.strip():
+                            st.code(code_preview, language=st.session_state["selected_language"])
+
+                        if extra_detail.strip():
+                            with st.expander(f"More detail on Step {i + 1}", expanded=False):
+                                st.markdown(extra_detail)
+
+                elif line_explanations:
+                    for item in line_explanations[:8]:
+                        st.markdown(f"- **Line {item.get('line_number')}** (`{item.get('code', '')}`): {item.get('explanation')}")
+
+                # ── Layer 3: Code Concepts ────────────────────────────
+                st.markdown('<div class="layer-title">🧩 Code Concepts</div>', unsafe_allow_html=True)
+                raw_concepts = expl_res.get("concepts", [])
+
+                concepts_list = []
+                for c in raw_concepts:
+                    if isinstance(c, dict):
+                        name = c.get("concept") or c.get("name")
+                        desc = c.get("definition") or c.get("explanation")
+                        ref = c.get("reference_source")
+                        if name and desc:
+                            concepts_list.append((name, desc, ref))
+
+                if not concepts_list:
+                    constructs = (expl_res.get("ast_analysis") or {}).get("constructs", {})
+                    if constructs.get("loops"):
+                        concepts_list.append(("Loops & Iteration", "Repeats a block of code across a collection or while a condition is satisfied.", None))
+                    if constructs.get("functions"):
+                        concepts_list.append(("Function Encapsulation", "Packages reusable logic into callable routines with defined parameters and return values.", None))
+                    if constructs.get("conditions"):
+                        concepts_list.append(("Conditional Branching", "Controls program execution flow based on boolean expressions and guard clauses.", None))
+                    if "def factorial" in code_input or "return n *" in code_input:
+                        concepts_list.append(("Recursion", "A technique where a function solves a problem by calling smaller instances of itself until reaching a base case.", None))
+
+                if concepts_list:
+                    col_c1, col_c2 = st.columns(2)
+                    for idx, (c_name, c_desc, c_ref) in enumerate(concepts_list):
+                        col_target = col_c1 if idx % 2 == 0 else col_c2
+                        with col_target:
+                            with st.expander(f"💡 **{c_name}**", expanded=False):
+                                st.markdown(c_desc)
+                                if c_ref:
+                                    st.caption(f"📖 Reference: {c_ref}")
+                else:
+                    st.caption("No specialized concepts identified for this snippet.")
+
+                # ── Layer 4: Potential Issues (Only when they actually exist!) ──
+                st.markdown('<div class="layer-title">⚠️ Potential Issues</div>', unsafe_allow_html=True)
+
+                raw_issues = expl_res.get("issues", [])
+                raw_hints = (expl_res.get("ast_analysis") or {}).get("static_hints", [])
+                complexity_score = (expl_res.get("ast_analysis") or {}).get("complexity_score", 1)
+
+                collected_issues = []
+                seen_msgs = set()
+
+                for iss in raw_issues:
+                    msg = iss.get("description", "")
+                    if msg and msg not in seen_msgs:
+                        seen_msgs.add(msg)
+                        collected_issues.append({
+                            "line": iss.get("line_number"),
+                            "severity": iss.get("severity", "warning").lower(),
+                            "title": iss.get("category", "Code Quality").title(),
+                            "description": msg,
+                            "fix": iss.get("suggested_fix"),
+                        })
+
+                for h in raw_hints:
+                    msg = h.get("message", "")
+                    if msg and msg not in seen_msgs:
+                        seen_msgs.add(msg)
+                        collected_issues.append({
+                            "line": h.get("line_start") or h.get("line_number"),
+                            "severity": h.get("severity", "warning").lower(),
+                            "title": h.get("rule_id", "Static Rule").replace("_", " ").title(),
+                            "description": msg,
+                            "fix": h.get("suggestion"),
+                        })
+
+                if complexity_score > 10 and "High Cyclomatic Complexity" not in seen_msgs:
+                    collected_issues.append({
+                        "line": None,
+                        "severity": "complexity",
+                        "title": "High Cyclomatic Complexity",
+                        "description": f"Complexity score is {complexity_score}. High complexity indicates nested branches or loops that can make code harder to debug and test.",
+                        "fix": "Refactor deeply nested logic into smaller helper functions.",
+                    })
+
+                if collected_issues:
+                    for iss in collected_issues:
+                        sev = iss["severity"]
+                        css_class = "error" if sev == "error" else ("complexity" if sev == "complexity" else "warning")
+                        icon = "🔴" if sev == "error" else ("🔵" if sev == "complexity" else "🟡")
+                        line_str = f"Line {iss['line']}" if iss['line'] else "General"
+
+                        st.markdown(f"""
+<div class="issue-box {css_class}">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <strong>{icon} {iss['title']}</strong>
+        <span class="line-badge">{line_str}</span>
+    </div>
+    <div style="font-size: 0.88rem; color: var(--text-primary); margin-bottom: 6px;">
+        {iss['description']}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+                        if iss.get("fix"):
+                            st.caption(f"💡 **Suggested Fix:** {iss['fix']}")
+                else:
+                    st.markdown('<div class="clean-banner">✨ Clean Code: No bugs, code smells, or complexity concerns detected.</div>', unsafe_allow_html=True)
+
+                # ── Layer 5: Deep Dive (Progressive Disclosure) ────────
+                st.markdown('<div class="layer-title">🔬 Deep Dive</div>', unsafe_allow_html=True)
+                with st.expander("Explore Complexity, Best Practices & Verification", expanded=False):
+                    comp = expl_res.get("complexity") or {}
+                    t_comp = comp.get("time_complexity") or comp.get("time") or "O(1)"
+                    s_comp = comp.get("space_complexity") or comp.get("space") or "O(1)"
+
+                    c_d1, c_d2 = st.columns(2)
+                    c_d1.metric("Estimated Time Complexity", t_comp)
+                    c_d2.metric("Estimated Space Complexity", s_comp)
+
+                    if comp.get("explanation"):
+                        st.markdown(f"**Complexity Rationale:** {comp.get('explanation')}")
+
+                    improvements = expl_res.get("suggested_improvements") or expl_res.get("hints", [])
+                    if improvements:
+                        st.markdown("##### 💡 Best Practices & Optimization Ideas")
+                        for imp in improvements:
+                            st.markdown(f"- {imp}")
+
+                    val_res = expl_res.get("validation_result")
+                    if val_res:
+                        st.markdown("##### 🛡️ Grounding & Verification Details")
+                        st.caption(f"Confidence: **{val_res.get('grounding_level', 'High')}** · Coverage: **{int(val_res.get('coverage_score', 0.0)*100)}%** · Referenced Lines: `{val_res.get('referenced_lines', [])}`")
+                        if val_res.get("unsupported_claims"):
+                            for uc in val_res.get("unsupported_claims", []):
+                                st.warning(f"⚠️ {uc}")
 
             # ── 6. EXECUTION & FLOW PANEL ─────────────────────────────
             with tab_trace:
