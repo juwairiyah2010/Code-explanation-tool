@@ -8,7 +8,7 @@ This guide describes how to configure, bootstrap, and deploy **Code Lore** acros
 1. [Architecture & Deployment Overview](#architecture--deployment-overview)
 2. [Local Setup](#local-setup)
 3. [Environment Variables](#environment-variables)
-4. [Database Setup & Migrations (Alembic)](#database-setup--migrations-alembic)
+4. [Database Setup](#database-setup)
 5. [Backend Startup](#backend-startup)
 6. [Frontend Startup](#frontend-startup)
 7. [Production Startup (Docker & Compose)](#production-startup-docker--compose)
@@ -21,8 +21,8 @@ This guide describes how to configure, bootstrap, and deploy **Code Lore** acros
 
 Code Lore is structured as a decoupled web application:
 - **Backend**: FastAPI REST service providing deterministic AST analysis, execution tracing, local ONNX vector embeddings (FastEmbed), RAG knowledge retrieval, and LLM explanation synthesis.
-- **Frontend**: Streamlit interactive learning workspace (and optional Flask web interface), connecting to the backend via configurable HTTP API endpoints.
-- **Database**: SQLAlchemy ORM with **Alembic** migrations. By default, it operates on SQLite (`sqlite:///./data/app.db`) or can target external SQL engines (e.g., PostgreSQL) via `DATABASE_URL`.
+- **Frontend**: Streamlit interactive learning workspace connecting to the backend via configurable HTTP API endpoints.
+- **Database**: Declarative SQLAlchemy ORM schema with automatic table and index initialization. By default, it operates on SQLite (`sqlite:///./data/app.db`) with WAL journal mode, or can target external SQL engines (e.g., PostgreSQL) via `DATABASE_URL`.
 - **Zero Localhost Coupling**: All host addresses, ports, and API endpoints are driven dynamically by environment variables.
 
 ---
@@ -108,38 +108,15 @@ Code Lore strictly separates settings by `ENVIRONMENT`. Configuration is automat
 
 ---
 
-## 🗄️ Database Setup & Migrations (Alembic)
+## 🗄️ Database Setup
 
-Code Lore uses **Alembic** to manage database schema evolutions deterministically, preventing manual, error-prone edits in production databases.
+Code Lore uses declarative SQLite schema management with WAL performance tuning and automated index verification.
 
-### 1. Reproducible Clean Environment Bootstrap
-To initialize a fresh database from scratch, apply all pending migrations, verify database connectivity, and automatically populate curated RAG knowledge chunks:
+### Reproducible Clean Environment Bootstrap
+To initialize a fresh database from scratch, verify database connectivity, build indexes, and automatically populate curated RAG knowledge chunks:
 ```bash
 python scripts/init_db.py
 ```
-
-### 2. Manual Alembic Migration Commands
-If you are developing schema changes or running automated CI/CD migration jobs:
-- **Upgrade to latest schema version**:
-  ```bash
-  alembic upgrade head
-  ```
-- **Check current database revision**:
-  ```bash
-  alembic current
-  ```
-- **Inspect revision history**:
-  ```bash
-  alembic history
-  ```
-- **Generate a new migration after editing SQLAlchemy models**:
-  ```bash
-  alembic revision --autogenerate -m "describe schema change"
-  ```
-- **Downgrade one revision**:
-  ```bash
-  alembic downgrade -1
-  ```
 
 ---
 
@@ -171,14 +148,6 @@ export BACKEND_URL=http://127.0.0.1:8000/api/v1
 python3 -m streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0
 ```
 - Access in browser: [http://localhost:8501](http://localhost:8501)
-
-### Optional Flask Web App
-```bash
-export BACKEND_URL=http://127.0.0.1:8000/api/v1
-export PYTHONPATH=.
-python3 flask_app/app.py
-```
-- Access in browser: [http://localhost:5001](http://localhost:5001)
 
 ---
 
@@ -220,9 +189,8 @@ docker run -d \
 ```
 
 The container entrypoint (`docker-entrypoint.sh`) automatically:
-1. Runs `alembic upgrade head` to ensure all database migrations are applied.
-2. Runs `scripts/init_db.py` to seed knowledge documentation if the database is newly initialized.
-3. Launches Uvicorn with configured workers (`WORKERS`) and bind addresses (`BACKEND_HOST`, `BACKEND_PORT`).
+1. Runs `scripts/init_db.py` to ensure schema tables, WAL mode, and indexes are initialized and seeds knowledge documentation if empty.
+2. Launches Uvicorn with configured workers (`WORKERS`) and bind addresses (`BACKEND_HOST`, `BACKEND_PORT`).
 
 ---
 
@@ -271,15 +239,6 @@ curl -f http://localhost:8000/health
   - For high-write enterprise production deployments, configure PostgreSQL in `.env`:
     ```ini
     DATABASE_URL=postgresql://user:password@db-host:5432/codelore
-    ```
-
-### 2. Alembic Migration Conflicts
-- **Error**: `alembic.util.exc.CommandError: Can't locate revision identified by 'xxxx'`
-- **Solution**:
-  - Verify that the SQLite database file in `data/app.db` matches the revisions in `alembic/versions/`.
-  - To sync or reset stamps:
-    ```bash
-    alembic stamp head
     ```
 
 ### 3. Frontend Cannot Reach Backend

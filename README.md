@@ -112,10 +112,9 @@ pytest --verbose
 
 Code Lore is fully configured for reproducible, zero-downtime deployment across development, testing, and production environments:
 
-- **Alembic Database Migrations**: Reproducible database initialization without manual schema modifications.
+- **Automated Database Initialization**: Reproducible database initialization and schema setup without manual modifications.
   ```bash
   python scripts/init_db.py     # Bootstraps schema & populates knowledge chunks
-  alembic upgrade head          # Applies latest database migrations
   ```
 - **Docker & Docker Compose**: Multi-stage build with non-root security isolation and health checks.
   ```bash

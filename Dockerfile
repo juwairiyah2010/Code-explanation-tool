@@ -19,15 +19,13 @@ COPY requirements-prod.txt /app/
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements-prod.txt
 
-# Copy application source code and migrations
+# Copy application source code and runtime assets
 COPY backend /app/backend
 COPY frontend /app/frontend
-COPY flask_app /app/flask_app
 COPY data /app/data
 COPY scripts /app/scripts
-COPY alembic /app/alembic
-COPY alembic.ini /app/
 COPY docker-entrypoint.sh /app/
+
 
 # Ensure entrypoint is executable and data directory exists
 RUN chmod +x /app/docker-entrypoint.sh && mkdir -p /app/data

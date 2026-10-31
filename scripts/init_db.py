@@ -1,6 +1,6 @@
-"""Reproducible database initialization and migration script.
+"""Reproducible database initialization script.
 
-Executes Alembic migrations to current head, ensures SQLite WAL tuning and indexes,
+Ensures SQLite WAL tuning, declarative schema creation, indexes,
 and bootstraps initial knowledge base documents if empty.
 """
 
@@ -11,12 +11,10 @@ from pathlib import Path
 # Ensure repository root is on sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import text
 
 from backend.config import get_settings
-from backend.core.database import SessionLocal, engine, init_db
+from backend.core.database import SessionLocal, init_db
 from backend.core.logging import logger
 from backend.repositories.rag_repo import RAGRepository
 from backend.services.rag.ingestion import KnowledgeIngestionPipeline
@@ -34,23 +32,11 @@ def run_database_initialization() -> None:
             os.makedirs(db_dir, exist_ok=True)
             logger.info(f"Ensured database directory: {db_dir}")
 
-    # 2. Run Alembic migrations to latest head
+    # 2. Run declarative database table and index creation
     root_dir = Path(__file__).resolve().parent.parent
-    alembic_ini_path = root_dir / "alembic.ini"
+    logger.info("Running declarative database schema initialization...")
+    init_db()
 
-    if alembic_ini_path.exists():
-        logger.info("Executing Alembic migrations (upgrade head)...")
-        alembic_cfg = Config(str(alembic_ini_path))
-        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-        try:
-            command.upgrade(alembic_cfg, "head")
-            logger.info("Alembic migrations completed successfully.")
-        except Exception as e:
-            logger.warning(f"Alembic upgrade encountered issue, falling back to declarative create_all: {e}")
-            init_db()
-    else:
-        logger.info("No alembic.ini found; running declarative table creation...")
-        init_db()
 
     # 3. Verify database connectivity
     with SessionLocal() as db:
