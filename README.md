@@ -38,14 +38,12 @@ A modular, extensible platform combining **AST-based static code analysis** and 
 │   ├── config.py               # Settings & environment variables
 │   └── main.py                 # FastAPI application
 ├── frontend/
-│   ├── components/             # Sidebar and UI widgets
 │   ├── utils/                  # HTTP API client
 │   └── app.py                  # Streamlit application
 ├── data/
 │   ├── knowledge_base/         # Curated programming markdown documentation
 │   └── app.db                  # Local SQLite database files
-├── docs/                       # Architecture & API specifications
-├── tests/                      # Pytest test suite (52 tests)
+├── tests/                      # Pytest test suite (195 tests)
 ├── .env.example                # Sample environment variables
 ├── requirements.txt            # Python dependencies
 └── README.md
