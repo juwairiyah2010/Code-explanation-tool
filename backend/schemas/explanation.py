@@ -278,6 +278,16 @@ class ExplainCodeRequest(BaseModel):
         return v
 
 
+class ExplanationValidationResult(BaseModel):
+    valid: bool = Field(..., description="Whether the explanation passed deterministic grounding checks")
+    coverage_score: float = Field(..., description="Proportion of significant source lines explained (0.0 to 1.0)")
+    referenced_lines: list[int] = Field(default_factory=list, description="Validated source lines directly referenced in the explanation")
+    invalid_references: list[int] = Field(default_factory=list, description="Referenced line numbers that do not exist in the source code")
+    unsupported_claims: list[str] = Field(default_factory=list, description="Claims about AST constructs or symbols not supported by code/AST")
+    warnings: list[str] = Field(default_factory=list, description="Warnings regarding coverage, static finding drift, or assumptions")
+    grounding_level: str = Field("High", description="Confidence rating: High, Moderate, Low")
+    repaired: bool = Field(False, description="Whether the response was deterministically repaired after validation")
+
 class ExplainCodeResponse(BaseModel):
     id: int | None = Field(None, description="Record ID if saved to database")
     language: str
@@ -302,6 +312,7 @@ class ExplainCodeResponse(BaseModel):
     uncertainty_notes: list[str] = Field(default_factory=list, description="Disclosures of any uncertainties")
     execution_trace: Any | None = Field(None, description="Trace response if tracing was executed")
     explanation_mode: str = Field("beginner", description="Mode used for generating the explanation")
+    validation_result: ExplanationValidationResult | None = Field(None, description="Deterministic grounding validation report")
     
     created_at: datetime | None = None
 

@@ -356,6 +356,40 @@ elif page == "📖 Explanation":
 > {result.get('summary', 'No summary available.')}
 """)
 
+        # ── Explanation Grounding Indicator ──────────────────────
+        val_result = result.get("validation_result")
+        if val_result:
+            is_valid = val_result.get("valid", True)
+            coverage = int(val_result.get("coverage_score", 0.0) * 100)
+            level = val_result.get("grounding_level", "Moderate")
+            repaired = val_result.get("repaired", False)
+
+            status_icon = "🟢" if is_valid else "🟡"
+            status_text = "Verified Grounded" if is_valid else "Grounding Warnings Flagged"
+            if repaired:
+                status_text += " (Auto-Repaired)"
+
+            with st.container():
+                st.markdown(f"#### {status_icon} Explanation Grounding: **{status_text}**")
+                g1, g2, g3 = st.columns(3)
+                g1.metric("Coverage Score", f"{coverage}%")
+                g2.metric("Grounding Level", level)
+                ref_count = len(val_result.get("referenced_lines", []))
+                g3.metric("Referenced Lines", ref_count)
+
+                if val_result.get("unsupported_claims") or val_result.get("warnings") or val_result.get("invalid_references"):
+                    with st.expander("🔍 Grounding & Verification Details", expanded=False):
+                        if val_result.get("invalid_references"):
+                            st.error(f"❌ **Invalid References:** Lines {val_result['invalid_references']}")
+                        if val_result.get("unsupported_claims"):
+                            st.warning("⚠️ **Unsupported Claims Detected:**")
+                            for claim in val_result["unsupported_claims"]:
+                                st.markdown(f"- {claim}")
+                        if val_result.get("warnings"):
+                            st.info("ℹ️ **Validation Warnings:**")
+                            for w in val_result["warnings"]:
+                                st.markdown(f"- {w}")
+
         # ── Metrics Row ──────────────────────────────────────────
         ast_data = result.get("ast_analysis")
         if ast_data:

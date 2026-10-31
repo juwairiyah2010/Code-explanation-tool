@@ -278,11 +278,66 @@ class ExplanationPipeline:
                 failure_reason=validation_error or "LLM generation unavailable",
             )
 
+        # ── 8.5 Deterministic Explanation Validation & Grounding ──────
+        val_result = self.validator.validate_grounding(
+            structured=structured_output,
+            code=code,
+            ast_result=ast_result,
+        )
+
+        # If invalid claims or references detected, attempt 1 regeneration with feedback
+        if not val_result.valid and raw_llm_output:
+            logger.warning(f"Grounding validation detected issues ({len(val_result.unsupported_claims)} unsupported claims, {len(val_result.invalid_references)} invalid lines). Requesting regeneration...")
+            feedback_items = []
+            if val_result.invalid_references:
+                feedback_items.append(f"Invalid non-existent line references: {val_result.invalid_references}")
+            if val_result.unsupported_claims:
+                feedback_items.append(f"Unsupported AST claims: {'; '.join(val_result.unsupported_claims)}")
+
+            regen_sys = (
+                sys_prompt
+                + "\n\nCRITICAL VALIDATION FEEDBACK:\n"
+                + "\n".join(feedback_items)
+                + "\nPlease regenerate the explanation strictly adhering to verified source lines and AST constructs."
+            )
+            try:
+                regen_raw = await self.llm_service.generate_chat_completion(
+                    system_prompt=regen_sys,
+                    user_prompt=user_prompt,
+                    temperature=0.1,
+                    json_mode=True,
+                )
+                regen_struct, regen_err = self.validator.validate_and_sanitize(regen_raw, code)
+                if regen_struct:
+                    regen_val = self.validator.validate_grounding(regen_struct, code, ast_result)
+                    if regen_val.valid:
+                        structured_output = regen_struct
+                        val_result = regen_val
+            except Exception as e:
+                logger.warning(f"Regeneration attempt failed: {e}")
+
+        # If still invalid, deterministically repair using verified AST structures
+        if not val_result.valid:
+            logger.info("Applying deterministic grounding repair to resolve unsupported claims and missing lines.")
+            structured_output = self.validator.repair_explanation(
+                structured=structured_output,
+                validation=val_result,
+                code=code,
+                ast_result=ast_result,
+            )
+            val_result = self.validator.validate_grounding(
+                structured=structured_output,
+                code=code,
+                ast_result=ast_result,
+            )
+            val_result.repaired = True
+
         # ── 9. Final Explanation Assembly & Backward Compatibility ────
         blocks: list[BlockExplanation] = []
         if legacy_validated_blocks is not None:
             blocks = legacy_validated_blocks
         elif structured_output.line_explanations:
+
             # Group or map line explanations to blocks
             blocks = [
                 BlockExplanation(
@@ -378,5 +433,6 @@ class ExplanationPipeline:
             uncertainty_notes=structured_output.uncertainty_notes,
             execution_trace=trace_result,
             explanation_mode=norm_mode,
+            validation_result=val_result,
             created_at=created_at,
         )
