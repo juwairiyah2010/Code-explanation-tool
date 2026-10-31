@@ -36,6 +36,22 @@ EXTENSION_MAP: dict[str, Language] = {
 }
 
 
+class LanguageDetector:
+    """Service dedicated to deterministic and heuristic programming language detection."""
+
+    def __init__(self, extension_map: dict[str, Language] | None = None):
+        self.extension_map = extension_map or EXTENSION_MAP
+
+    def detect(
+        self,
+        code: str,
+        filename: str | None = None,
+        explicit_language: str | None = None,
+    ) -> LanguageDetectionResult:
+        """Detect language using explicit override, file extension, or syntax heuristics."""
+        return detect_language(code, filename=filename, explicit_language=explicit_language)
+
+
 def detect_language(code: str, filename: str | None = None, explicit_language: str | None = None) -> LanguageDetectionResult:
     """Detect code language using filename extension, explicit request, or syntax fallback."""
     # 1. Explicit valid language

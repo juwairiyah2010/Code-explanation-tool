@@ -151,3 +151,16 @@ class TracerService:
                     language="python",
                     error=f"Internal tracing error: {str(e)}",
                 )
+
+    async def trace_if_applicable(
+        self, code: str, language: str, input_data: str | None = None
+    ) -> TraceResponse | None:
+        """Run execution trace only when applicable (Python code). Returns None if not applicable."""
+        if language.lower() not in ("python", "py"):
+            return None
+        req = TraceRequest(code=code, language="python", input_data=input_data)
+        return await self.trace_code(req)
+
+
+TraceService = TracerService
+

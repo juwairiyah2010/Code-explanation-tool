@@ -1,7 +1,7 @@
 """Base interface for LLM providers."""
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 if TYPE_CHECKING:
     from backend.schemas.quiz import QuizResponse
@@ -21,6 +21,17 @@ class LLMExplanationResult(NamedTuple):
 class BaseLLMService(ABC):
     """Abstract interface for LLM generation engines."""
 
+    async def generate_chat_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.2,
+        json_mode: bool = True,
+    ) -> str:
+        """Execute chat completion and return the raw model string response."""
+        raise NotImplementedError("generate_chat_completion must be implemented by provider.")
+
+
     @abstractmethod
     async def generate_explanation(
         self,
@@ -31,6 +42,7 @@ class BaseLLMService(ABC):
         required_blocks: list | None = None,
         rag_context: str | None = None,
         rag_citations: list | None = None,
+        **kwargs: Any,
     ) -> LLMExplanationResult:
         """Generate structured explanation from code and context."""
         pass
@@ -45,3 +57,4 @@ class BaseLLMService(ABC):
     ) -> "QuizResponse":
         """Generate a multiple-choice quiz based strictly on the code."""
         pass
+

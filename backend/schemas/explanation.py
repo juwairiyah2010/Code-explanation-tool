@@ -176,6 +176,40 @@ class AlgorithmComplexity(BaseModel):
     space_complexity: str = Field(..., description="Space complexity estimate")
     explanation: str = Field(..., description="Complexity explanation")
 
+class LineExplanationItem(BaseModel):
+    line_number: int = Field(..., description="Actual source line number (1-indexed)")
+    code: str | None = Field(None, description="Actual code content of this line")
+    explanation: str = Field(..., description="Explanation for this line")
+    uncertainty_note: str | None = Field(None, description="Explicit uncertainty note if applicable")
+
+class ConceptItem(BaseModel):
+    name: str = Field(..., description="Concept or technique name")
+    explanation: str = Field(..., description="Educational explanation of the concept")
+    reference_source: str | None = Field(None, description="Attributed reference if available")
+
+class IssueItem(BaseModel):
+    line_number: int | None = Field(None, description="Line number if related to a specific line")
+    severity: str = Field("warning", description="info, warning, or error")
+    category: str = Field("code quality", description="syntax, security, performance, bug, quality")
+    description: str = Field(..., description="Clear explanation of the problem")
+    suggested_fix: str | None = Field(None, description="How to fix or improve it")
+
+class StructuredExplanationOutput(BaseModel):
+    summary: str = Field("", description="High-level summary of the code and its purpose")
+    line_explanations: list[LineExplanationItem] = Field(default_factory=list, description="Explanations mapped strictly to actual source lines")
+    concepts: list[ConceptItem] = Field(default_factory=list, description="Core programming concepts demonstrated")
+    issues: list[IssueItem] = Field(default_factory=list, description="Potential issues, security risks, bugs, or performance bottlenecks")
+    execution_walkthrough: list[str] = Field(default_factory=list, description="Step-by-step runtime execution or logic walkthrough")
+    key_takeaways: list[str] = Field(default_factory=list, description="Key learning takeaways for the developer")
+    suggested_improvements: list[str] = Field(default_factory=list, description="Concrete suggestions to improve or optimize the code")
+    uncertainty_notes: list[str] = Field(default_factory=list, description="Explicit disclosures of any uncertainties or assumptions")
+
+class LearnerProfile(BaseModel):
+    level: str = Field("beginner", description="Learner expertise level: absolute beginner, beginner, intermediate, expert")
+    mode: str = Field("beginner", description="Requested explanation mode: absolute beginner, beginner, intermediate, expert, line-by-line, debugging, security, performance")
+    locale: str = Field("en", description="Target locale / language")
+    focus_areas: list[str] = Field(default_factory=list, description="Special focus areas")
+
 class CodeAnalysisRequest(BaseModel):
     code: str = Field(..., min_length=1, max_length=50000, description="Source code snippet to analyze")
     language: LanguageType = Field("auto", description="Language of snippet ('auto', 'python', 'javascript')")
@@ -228,10 +262,13 @@ class ExplainCodeRequest(BaseModel):
     code: str = Field(..., min_length=1, max_length=50000, description="Code snippet to explain")
     language: LanguageType = Field("python", description="Programming language")
     filename: str | None = Field(None, description="Optional filename")
-    level: ExplanationLevelType = Field("Beginner", description="Desired level of explanation")
+    level: str = Field("Beginner", description="Desired level of explanation (e.g. Absolute Beginner, Beginner, Intermediate, Expert)")
+    mode: str | None = Field(None, description="Explanation mode: absolute beginner, beginner, intermediate, expert, line-by-line, debugging, security, performance")
     include_ast_analysis: bool = Field(True, description="Whether to include AST parsing metadata")
+    enable_trace: bool = Field(True, description="Whether to run execution trace if applicable")
     enable_rag: bool = Field(True, description="Whether to retrieve and ground explanation on RAG knowledge base")
     save_history: bool = Field(True, description="Whether to persist the explanation in SQLite")
+    learner_profile: LearnerProfile | None = Field(None, description="Learner profile details")
 
     @field_validator("code")
     @classmethod
@@ -244,8 +281,8 @@ class ExplainCodeRequest(BaseModel):
 class ExplainCodeResponse(BaseModel):
     id: int | None = Field(None, description="Record ID if saved to database")
     language: str
-    level: ExplanationLevelType
-    summary: str = Field(..., description="Three-sentence overall summary")
+    level: str
+    summary: str = Field(..., description="Overall summary of the code")
     blocks: list[BlockExplanation] = Field(default_factory=list, description="Block-by-block explanations")
     concepts: list[ConceptTag] = Field(default_factory=list, description="Concept tags with simple definitions")
     algorithm_steps: list[str] = Field(default_factory=list, description="Algorithm steps")
@@ -254,6 +291,18 @@ class ExplainCodeResponse(BaseModel):
     ast_analysis: CodeAnalysisResponse | None = None
     rag_sources: list[RAGSourceCitation] = Field(default_factory=list, description="Retrieved RAG knowledge citations and references")
     rag_context_used: bool = Field(False, description="Whether RAG knowledge was retrieved and used in the explanation")
+    
+    # Enhanced structured pipeline fields
+    structured_output: StructuredExplanationOutput | None = None
+    line_explanations: list[LineExplanationItem] = Field(default_factory=list, description="Line-by-line explanations referencing actual source lines")
+    issues: list[IssueItem] = Field(default_factory=list, description="Categorized issues and findings")
+    execution_walkthrough: list[str] = Field(default_factory=list, description="Runtime execution trace walkthrough")
+    key_takeaways: list[str] = Field(default_factory=list, description="Key takeaways")
+    suggested_improvements: list[str] = Field(default_factory=list, description="Actionable improvement suggestions")
+    uncertainty_notes: list[str] = Field(default_factory=list, description="Disclosures of any uncertainties")
+    execution_trace: Any | None = Field(None, description="Trace response if tracing was executed")
+    explanation_mode: str = Field("beginner", description="Mode used for generating the explanation")
+    
     created_at: datetime | None = None
 
 
