@@ -1,12 +1,8 @@
-"""Code explanation and history endpoints."""
+"""Code explanation endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from backend.core.database import get_db
-from backend.schemas.explanation import (
-    ExplainCodeRequest,
-    ExplainCodeResponse,
-)
+from fastapi import APIRouter, Depends, HTTPException, status
+from backend.api.deps import get_explanation_service
+from backend.schemas.explanation import ExplainCodeRequest, ExplainCodeResponse
 from backend.services.explanation_service import ExplanationService
 
 router = APIRouter()
@@ -15,11 +11,10 @@ router = APIRouter()
 @router.post("/explain", response_model=ExplainCodeResponse, tags=["Code Explanation"])
 async def explain_code(
     request: ExplainCodeRequest,
-    db: Session = Depends(get_db),
+    service: ExplanationService = Depends(get_explanation_service),
 ) -> ExplainCodeResponse:
     """Generate structured AI explanation for Python or JavaScript code snippets."""
     try:
-        service = ExplanationService(db)
         return await service.explain_code(request)
     except ValueError as e:
         raise HTTPException(

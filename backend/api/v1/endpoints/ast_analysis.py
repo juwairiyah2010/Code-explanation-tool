@@ -1,10 +1,9 @@
 """AST and static code analysis endpoint."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from backend.core.database import get_db
+from backend.api.deps import get_code_analyzer
 from backend.schemas.explanation import CodeAnalysisRequest, CodeAnalysisResponse
-from backend.services.explanation_service import ExplanationService
+from backend.services.analysis.code_analyzer import CodeAnalyzer
 
 router = APIRouter()
 
@@ -12,12 +11,11 @@ router = APIRouter()
 @router.post("/ast/analyze", response_model=CodeAnalysisResponse, tags=["AST Analysis"])
 def analyze_ast(
     request: CodeAnalysisRequest,
-    db: Session = Depends(get_db),
+    analyzer: CodeAnalyzer = Depends(get_code_analyzer),
 ) -> CodeAnalysisResponse:
-    """Analyze source code syntax, extract constructs, detect language, check static rules, and split blocks."""
+    """Analyze source code syntax, extract constructs, detect language, check static rules, and calculate metrics."""
     try:
-        service = ExplanationService(db)
-        return service.analyze_code_ast(
+        return analyzer.analyze(
             code=request.code,
             language=request.language,
             filename=request.filename,

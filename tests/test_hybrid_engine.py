@@ -1,9 +1,7 @@
 import pytest
 from backend.services.explanation_service import ExplanationService
-from backend.schemas.explanation import ExplainCodeRequest, CodeAnalysisResponse, SyntaxBlock
+from backend.schemas.explanation import ExplainCodeRequest, AlgorithmComplexity, BlockExplanation
 from backend.services.llm.base import BaseLLMService, LLMExplanationResult
-from backend.schemas.explanation import AlgorithmComplexity, BlockExplanation, ConceptTag
-import asyncio
 
 class FailOnceLLM(BaseLLMService):
     def __init__(self):

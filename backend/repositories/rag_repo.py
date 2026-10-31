@@ -53,8 +53,9 @@ class RAGRepository:
         content: str,
         token_count: int,
         embedding: list[float],
+        section: str = "",
     ) -> KnowledgeChunk:
-        """Insert or replace a knowledge chunk with its embedding."""
+        """Insert or replace a knowledge chunk with its embedding and section metadata."""
         stmt = select(KnowledgeChunk).where(KnowledgeChunk.chunk_id == chunk_id)
         chunk = self.db.execute(stmt).scalars().first()
 
@@ -66,6 +67,7 @@ class RAGRepository:
             chunk.source = source
             chunk.language = language
             chunk.topic = topic
+            chunk.section = section or title
             chunk.content = content
             chunk.token_count = token_count
             chunk.embedding = embedding_json
@@ -77,6 +79,7 @@ class RAGRepository:
                 source=source,
                 language=language,
                 topic=topic,
+                section=section or title,
                 content=content,
                 token_count=token_count,
                 embedding=embedding_json,

@@ -317,6 +317,17 @@ class PythonCodeParser(BaseCodeParser):
                 "num_hints": len(static_hints),
             }
 
+            loc = {
+                "total": total_lines,
+                "code": max(0, total_lines - blank_lines - comment_lines),
+                "blank": blank_lines,
+                "comment": comment_lines,
+            }
+            summary = (
+                f"Python code analyzed: {len(static_hints)} finding(s) across {total_lines} lines "
+                f"(complexity: {visitor.complexity_score})."
+            )
+
             return CodeAnalysisResponse(
                 language="python",
                 detection_method=detection_method,
@@ -326,9 +337,18 @@ class PythonCodeParser(BaseCodeParser):
                 blocks=blocks,
                 constructs=constructs,
                 static_hints=static_hints,
+                findings=static_hints,
                 complexity_score=visitor.complexity_score,
+                cyclomatic_complexity=visitor.complexity_score,
                 max_nesting_depth=visitor.max_nesting_depth,
+                maximum_nesting_depth=visitor.max_nesting_depth,
+                function_count=len(visitor.functions),
+                class_count=len(visitor.classes),
+                import_count=len(visitor.imports),
+                lines_of_code=loc,
+                duplicate_patterns=[],
                 metrics=metrics,
+                summary=summary,
                 functions=legacy_functions,
                 classes=legacy_classes,
                 imports=legacy_imports,
@@ -341,6 +361,21 @@ class PythonCodeParser(BaseCodeParser):
                 column=e.offset or 1,
                 message=e.msg or "Syntax error",
             )
+            from backend.schemas.explanation import AnalysisFinding
+            syntax_finding = AnalysisFinding(
+                rule_id="SYNTAX_ERROR",
+                language="python",
+                severity="error",
+                line_number=e.lineno or 1,
+                column_number=e.offset or 1,
+                category="syntax",
+                title=f"Syntax Error: {e.msg}",
+                technical_description=f"Python parser failed at line {e.lineno}, col {e.offset}: {e.msg}",
+                beginner_explanation="Python encountered invalid syntax on this line. Check for missing colons, unclosed brackets, or typos.",
+                suggested_fix="Fix the syntax error on this line.",
+                line_start=e.lineno or 1,
+                line_end=e.lineno or 1,
+            )
             return CodeAnalysisResponse(
                 language="python",
                 detection_method=detection_method,
@@ -349,10 +384,19 @@ class PythonCodeParser(BaseCodeParser):
                 syntax_errors=[syntax_err],
                 blocks=[],
                 constructs=CodeConstructs(),
-                static_hints=[],
+                static_hints=[syntax_finding],
+                findings=[syntax_finding],
                 complexity_score=1,
+                cyclomatic_complexity=1,
                 max_nesting_depth=0,
+                maximum_nesting_depth=0,
+                function_count=0,
+                class_count=0,
+                import_count=0,
+                lines_of_code={"total": total_lines, "code": 0, "blank": 0, "comment": 0},
+                duplicate_patterns=[],
                 metrics={"total_lines": total_lines, "error_line": e.lineno},
+                summary=f"Syntax error at line {e.lineno}: {e.msg}",
                 functions=[],
                 classes=[],
                 imports=[],
@@ -367,9 +411,18 @@ class PythonCodeParser(BaseCodeParser):
                 blocks=[],
                 constructs=CodeConstructs(),
                 static_hints=[],
+                findings=[],
                 complexity_score=1,
+                cyclomatic_complexity=1,
                 max_nesting_depth=0,
+                maximum_nesting_depth=0,
+                function_count=0,
+                class_count=0,
+                import_count=0,
+                lines_of_code={"total": total_lines, "code": 0, "blank": 0, "comment": 0},
+                duplicate_patterns=[],
                 metrics={"total_lines": total_lines},
+                summary=f"Analysis failed: {str(e)}",
                 functions=[],
                 classes=[],
                 imports=[],

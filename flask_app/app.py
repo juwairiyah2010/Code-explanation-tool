@@ -2,9 +2,11 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from frontend.utils.api_client import APIClient
 import json
 from functools import wraps
+from backend.config import get_settings
 
 app = Flask(__name__)
-app.secret_key = 'super_secret_key_for_code_lore'
+settings = get_settings()
+app.secret_key = getattr(settings, "SECRET_KEY", "super_secret_key_for_code_lore")
 client = APIClient()
 
 PYTHON_EXAMPLE = '''import math

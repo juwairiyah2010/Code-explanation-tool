@@ -1,4 +1,4 @@
-"""Ingestion pipeline for parsing, chunking, embedding, and storing knowledge documentation."""
+"""Ingestion pipeline for document cleaning, semantic chunking, metadata extraction, embedding, and SQLite vector storage."""
 
 import os
 import re
@@ -14,17 +14,38 @@ from backend.services.rag.embeddings import BaseEmbeddingService, get_embedding_
 
 
 class KnowledgeIngestionPipeline:
-    """Extracts, cleans, chunks, embeds, and stores documentation into SQLite."""
+    """Extracts, cleans, semantically chunks, embeds, and stores documentation into SQLite."""
 
     def __init__(self, db: Session, embedding_service: BaseEmbeddingService | None = None):
         self.db = db
         self.repo = RAGRepository(db)
         self.embedding_service = embedding_service or get_embedding_service()
 
+    def clean_document_text(self, text: str) -> str:
+        """Clean and normalize raw document text while preserving code blocks and structure."""
+        if not text:
+            return ""
+
+        # Normalize line endings and unicode spaces
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        text = re.sub(r"[\u200b-\u200d\uFEFF]", "", text)  # Zero-width spaces
+
+        # Replace smart quotes with standard ASCII equivalents
+        text = text.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+
+        # Normalize trailing spaces on lines while preserving markdown indents
+        lines = [line.rstrip() for line in text.split("\n")]
+
+        # Collapse excessive blank lines (> 2 into 2)
+        cleaned = "\n".join(lines)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
+
     def parse_markdown_document(self, file_path: Path) -> dict:
         """Parse markdown file with headers, extracting metadata and semantic sections."""
-        text = file_path.read_text(encoding="utf-8")
-        lines = text.splitlines()
+        raw_text = file_path.read_text(encoding="utf-8")
+        clean_text = self.clean_document_text(raw_text)
+        lines = clean_text.splitlines()
 
         title = file_path.stem.replace("_", " ").title()
         source = "Internal Documentation"
@@ -54,7 +75,6 @@ class KnowledgeIngestionPipeline:
         sections = []
         current_header = title
 
-        # parts alternating between header and content
         i = 0
         while i < len(parts):
             part = parts[i].strip()
@@ -73,7 +93,11 @@ class KnowledgeIngestionPipeline:
                 content = part
 
             if content:
-                sections.append({"title": current_header, "content": content})
+                sections.append({
+                    "title": current_header,
+                    "section": current_header,
+                    "content": content,
+                })
             i += 1
 
         return {
@@ -86,19 +110,53 @@ class KnowledgeIngestionPipeline:
         }
 
     def chunk_section(self, section: dict, max_words: int = 300, overlap: int = 50) -> list[str]:
-        """Split a long section into sliding window chunks if needed, or return single chunk."""
+        """Perform semantic chunking: split by paragraphs and preserve code blocks without clipping."""
         content = section["content"]
         words = content.split()
         if len(words) <= max_words:
             return [content]
 
+        # Break content into paragraphs, keeping code blocks intact
+        paragraphs = re.split(r"\n\n+", content)
         chunks = []
-        step = max_words - overlap
-        for start_idx in range(0, len(words), step):
-            chunk_words = words[start_idx : start_idx + max_words]
-            chunks.append(" ".join(chunk_words))
-            if start_idx + max_words >= len(words):
-                break
+        current_chunk_paragraphs = []
+        current_word_count = 0
+
+        for p in paragraphs:
+            p_words = p.split()
+            p_len = len(p_words)
+
+            # If a single paragraph exceeds max_words, split it with a sliding window
+            if p_len > max_words:
+                if current_chunk_paragraphs:
+                    chunks.append("\n\n".join(current_chunk_paragraphs))
+                    current_chunk_paragraphs = []
+                    current_word_count = 0
+
+                step = max_words - overlap
+                for start_idx in range(0, p_len, step):
+                    window = " ".join(p_words[start_idx : start_idx + max_words])
+                    chunks.append(window)
+                    if start_idx + max_words >= p_len:
+                        break
+                continue
+
+            if current_word_count + p_len <= max_words:
+                current_chunk_paragraphs.append(p)
+                current_word_count += p_len
+            else:
+                chunks.append("\n\n".join(current_chunk_paragraphs))
+                # Seed next chunk with overlap paragraph if available
+                if current_chunk_paragraphs and len(current_chunk_paragraphs[-1].split()) <= overlap:
+                    current_chunk_paragraphs = [current_chunk_paragraphs[-1], p]
+                    current_word_count = len(current_chunk_paragraphs[0].split()) + p_len
+                else:
+                    current_chunk_paragraphs = [p]
+                    current_word_count = p_len
+
+        if current_chunk_paragraphs:
+            chunks.append("\n\n".join(current_chunk_paragraphs))
+
         return chunks
 
     def ingest_directory(self, directory_path: Path) -> RAGIngestResponse:
@@ -133,12 +191,21 @@ class KnowledgeIngestionPipeline:
                 sub_chunks = self.chunk_section(sec)
                 for c_idx, chunk_text in enumerate(sub_chunks):
                     chunk_id = f"{doc_data['doc_id']}_s{s_idx + 1}_c{c_idx + 1}"
+                    section_name = sec.get("section", sec["title"])
+
                     # Contextual chunk prefix to improve semantic embedding quality
-                    embedding_text = f"Title: {sec['title']}\nLanguage: {doc_data['language']}\nTopic: {doc_data['topic']}\n\n{chunk_text}"
+                    embedding_text = (
+                        f"Title: {doc_data['title']}\n"
+                        f"Section: {section_name}\n"
+                        f"Language: {doc_data['language']}\n"
+                        f"Topic: {doc_data['topic']}\n\n"
+                        f"{chunk_text}"
+                    )
                     total_chunks.append({
                         "document_id": doc_record.id,
                         "chunk_id": chunk_id,
-                        "title": sec["title"],
+                        "title": sec.get("title", section_name),
+                        "section": section_name,
                         "source": doc_data["source"],
                         "language": doc_data["language"],
                         "topic": doc_data["topic"],
@@ -152,7 +219,7 @@ class KnowledgeIngestionPipeline:
         inputs = [c["embedding_input"] for c in total_chunks]
         embeddings = self.embedding_service.embed_texts(inputs)
 
-        # Save to SQLite
+        # Save to SQLite with full metadata
         for chunk_data, emb in zip(total_chunks, embeddings):
             self.repo.save_chunk(
                 document_id=chunk_data["document_id"],
@@ -164,6 +231,7 @@ class KnowledgeIngestionPipeline:
                 content=chunk_data["content"],
                 token_count=chunk_data["token_count"],
                 embedding=emb,
+                section=chunk_data["section"],
             )
 
         self.db.commit()

@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from backend.core.database import Base
 from datetime import datetime, timezone
-import json
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -105,10 +104,16 @@ class KnowledgeChunk(Base):
     source = Column(String(255), nullable=False)
     language = Column(String(50), index=True, nullable=False)
     topic = Column(String(100), index=True, nullable=False)
+    section = Column(String(255), nullable=True, default="")
     content = Column(Text, nullable=False)
     token_count = Column(Integer, default=0, nullable=False)
     embedding = Column(Text, nullable=False)  # JSON-encoded float array
     created_at = Column(DateTime, default=utc_now, nullable=False)
 
     document = relationship("KnowledgeDocument", back_populates="chunks")
+
+    @property
+    def text(self) -> str:
+        """Alias for content to provide normalized chunk interface."""
+        return self.content
 

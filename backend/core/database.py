@@ -41,3 +41,14 @@ def init_db() -> None:
                 os.makedirs(db_dir, exist_ok=True)
 
     Base.metadata.create_all(bind=engine)
+    # Ensure backward-compatible schema additions in SQLite
+    try:
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            res = conn.execute(text("PRAGMA table_info(knowledge_chunks)")).fetchall()
+            cols = [r[1] for r in res]
+            if cols and "section" not in cols:
+                conn.execute(text("ALTER TABLE knowledge_chunks ADD COLUMN section TEXT DEFAULT ''"))
+                conn.commit()
+    except Exception:
+        pass

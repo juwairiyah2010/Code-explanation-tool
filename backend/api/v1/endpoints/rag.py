@@ -1,18 +1,13 @@
 """Endpoints for RAG knowledge search, statistics, and ingestion."""
 
-from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-
-from backend.core.database import get_db
-from backend.repositories.rag_repo import RAGRepository
+from backend.api.deps import get_rag_service
 from backend.schemas.rag import (
     RAGIngestResponse,
     RAGRetrievalRequest,
     RAGRetrievalResponse,
 )
-from backend.services.rag.ingestion import KnowledgeIngestionPipeline
-from backend.services.rag.retriever import RAGRetriever
+from backend.services.rag.rag_service import RAGService
 
 router = APIRouter()
 
@@ -26,15 +21,10 @@ router = APIRouter()
 )
 def retrieve_knowledge(
     request: RAGRetrievalRequest,
-    db: Session = Depends(get_db),
-):
-    retriever = RAGRetriever(db)
-    return retriever.retrieve(
-        query=request.query,
-        language=request.language,
-        top_k=request.top_k,
-        similarity_threshold=request.similarity_threshold,
-    )
+    rag_service: RAGService = Depends(get_rag_service),
+) -> RAGRetrievalResponse:
+    """Perform vector similarity search over documentation chunks."""
+    return rag_service.retrieve(request)
 
 
 @router.get(
@@ -43,9 +33,9 @@ def retrieve_knowledge(
     summary="Knowledge Base Statistics",
     description="Get count of ingested documents and vector chunks.",
 )
-def get_rag_stats(db: Session = Depends(get_db)):
-    repo = RAGRepository(db)
-    return repo.get_stats()
+def get_rag_stats(rag_service: RAGService = Depends(get_rag_service)) -> dict[str, int]:
+    """Retrieve document count and chunk count from knowledge base."""
+    return rag_service.get_stats()
 
 
 @router.post(
@@ -55,13 +45,12 @@ def get_rag_stats(db: Session = Depends(get_db)):
     summary="Trigger Knowledge Ingestion",
     description="Re-index and embed documentation from the data/knowledge_base directory.",
 )
-def trigger_ingestion(db: Session = Depends(get_db)):
+def trigger_ingestion(
+    rag_service: RAGService = Depends(get_rag_service),
+) -> RAGIngestResponse:
+    """Re-parse and re-embed reference documents into SQLite vectors."""
     try:
-        pipeline = KnowledgeIngestionPipeline(db)
-        kb_path = Path("data/knowledge_base")
-        if not kb_path.exists():
-            kb_path = Path(__file__).resolve().parents[4] / "data" / "knowledge_base"
-        return pipeline.ingest_directory(kb_path)
+        return rag_service.ingest_directory()
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

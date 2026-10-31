@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-1.5-flash"
 
+    # RAG & Embeddings
+    EMBEDDING_PROVIDER: str = "fastembed"
+
+    # Security
+    SECRET_KEY: str = "code_lore_default_secret_key"
+
     # Parser / AST limits
     MAX_CODE_LENGTH: int = 10000
     ENABLE_TREE_SITTER: bool = True

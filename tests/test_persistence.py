@@ -1,6 +1,6 @@
 import pytest
-from backend.core.database import Base, get_db
-from backend.models.persistence import Submission, Explanation, Block, Concept, QuizItem
+from backend.core.database import Base
+from backend.models.persistence import Explanation, Block, Concept, QuizItem
 from backend.repositories.submission_repo import SubmissionRepository
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

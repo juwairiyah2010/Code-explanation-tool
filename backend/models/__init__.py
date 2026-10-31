@@ -1,3 +1,23 @@
-from backend.models.persistence import Submission, Explanation, Block, Concept, QuizItem
+"""Models package exporting all SQLAlchemy persistence entities."""
 
-__all__ = ["Submission", "Explanation", "Block", "Concept", "QuizItem"]
+from backend.models.persistence import (
+    User,
+    Submission,
+    Explanation,
+    Block,
+    Concept,
+    QuizItem,
+    KnowledgeDocument,
+    KnowledgeChunk,
+)
+
+__all__ = [
+    "User",
+    "Submission",
+    "Explanation",
+    "Block",
+    "Concept",
+    "QuizItem",
+    "KnowledgeDocument",
+    "KnowledgeChunk",
+]

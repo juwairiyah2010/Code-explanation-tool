@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 from backend.main import app
 
@@ -147,4 +146,157 @@ def test_trace_sandbox_blocks_import():
     )
     assert response.status_code == 400
     assert "ImportError" in response.json()["detail"] or "__import__" in response.json()["detail"]
+
+
+def test_trace_variable_updates():
+    code = """
+a = 10
+a = 20
+a = a + 5
+"""
+    response = client.post(
+        "/api/v1/trace",
+        json={"code": code, "language": "python"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+
+    # Check changed_variables across steps
+    diffs = [s.get("changed_variables", {}) for s in data["steps"]]
+    assert any(d.get("a") == "10" for d in diffs)
+    assert any(d.get("a") == "20" for d in diffs)
+    assert any(d.get("a") == "25" for d in diffs)
+
+
+def test_trace_nested_functions():
+    code = """
+def outer(x):
+    def inner(y):
+        return y * 2
+    return inner(x) + 1
+
+res = outer(3)
+"""
+    response = client.post(
+        "/api/v1/trace",
+        json={"code": code, "language": "python"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+
+    steps = data["steps"]
+    # Check that call_depth reached at least 2
+    max_depth = max(s.get("call_depth", 0) for s in steps)
+    assert max_depth >= 2
+
+    # Check function names captured
+    funcs = {s.get("function_name") for s in steps}
+    assert "outer" in funcs
+    assert "inner" in funcs
+
+    # Final state should include res = 7
+    assert data["final_state"].get("res") == "7"
+
+
+def test_trace_recursion():
+    code = """
+def fact(n):
+    if n <= 1:
+        return 1
+    return n * fact(n - 1)
+
+r = fact(3)
+"""
+    response = client.post(
+        "/api/v1/trace",
+        json={"code": code, "language": "python"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+
+    steps = data["steps"]
+    fact_calls = [s for s in steps if s.get("event_type") == "call" and s.get("function_name") == "fact"]
+    assert len(fact_calls) == 3
+
+    # Call depths for recursive calls should increase
+    depths = [c.get("call_depth", 0) for c in fact_calls]
+    assert depths == [1, 2, 3]
+
+    assert data["final_state"].get("r") == "6"
+
+
+def test_trace_conditionals():
+    code = """
+x = 10
+if x > 5:
+    branch = "greater"
+else:
+    branch = "lesser"
+"""
+    response = client.post(
+        "/api/v1/trace",
+        json={"code": code, "language": "python"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+
+    # "greater" should be recorded in final state, not "lesser"
+    assert data["final_state"].get("branch") == "'greater'"
+
+
+def test_trace_exceptions_captured():
+    code = """
+try:
+    int("not_a_number")
+except ValueError as e:
+    handled = True
+"""
+    response = client.post(
+        "/api/v1/trace",
+        json={"code": code, "language": "python"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+
+    # Check that exception event was captured
+    exc_steps = [s for s in data["steps"] if s.get("event_type") == "exception"]
+    assert len(exc_steps) >= 1
+    assert "ValueError" in (exc_steps[0].get("exception") or "")
+    assert data["final_state"].get("handled") == "True"
+
+
+def test_trace_print_statements():
+    code = """
+print("Alpha")
+print("Beta")
+"""
+    response = client.post(
+        "/api/v1/trace",
+        json={"code": code, "language": "python"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert "Alpha\n" in data["output"]
+    assert "Beta\n" in data["output"]
+
+
+def test_trace_step_limit_protection():
+    code = """
+for i in range(1200):
+    x = i
+"""
+    response = client.post(
+        "/api/v1/trace",
+        json={"code": code, "language": "python"}
+    )
+    # Exceeding step limit marks trace as failed and returns 400
+    assert response.status_code == 400
+    assert "step limit exceeded" in response.json()["detail"].lower()
+
 

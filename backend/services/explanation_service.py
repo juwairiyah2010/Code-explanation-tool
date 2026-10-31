@@ -8,9 +8,9 @@ from backend.schemas.explanation import (
     ExplainCodeRequest,
     ExplainCodeResponse,
 )
+from backend.schemas.rag import RAGSourceCitation
 from backend.services.detector import detect_language
 from backend.services.llm import get_llm_service
-from backend.services.parsers import get_parser
 
 
 class ExplanationService:
@@ -27,19 +27,10 @@ class ExplanationService:
         language: str = "auto",
         filename: str | None = None,
     ) -> CodeAnalysisResponse:
-        """Detect language if needed and run language-specific parser to extract constructs, rules, and blocks."""
-        # 1. Resolve language
-        if language.lower() in ("auto", "unknown", ""):
-            detection = detect_language(code, filename=filename)
-            resolved_lang = detection.language if detection.language != "unknown" else "python"
-            method = detection.method
-        else:
-            detection = detect_language(code, filename=filename, explicit_language=language)
-            resolved_lang = detection.language
-            method = detection.method
-
-        parser = get_parser(resolved_lang)
-        return parser.parse(code, detection_method=method)
+        """Analyze code with CodeAnalyzer returning normalized findings and metrics."""
+        from backend.services.analysis.code_analyzer import CodeAnalyzer
+        analyzer = CodeAnalyzer()
+        return analyzer.analyze(code, language=language, filename=filename)
 
     async def explain_code(self, request: ExplainCodeRequest) -> ExplainCodeResponse:
         """Analyze code, generate AI explanation, optionally save to database, and return response."""
@@ -101,8 +92,8 @@ class ExplanationService:
             if rag_res.results:
                 rag_sources = rag_res.results
                 rag_context_used = True
-                rag_context = "\n\n".join(
-                    f"[{c.title}] (Source: {c.source})\n{c.snippet}" for c in rag_sources
+                rag_context = rag_res.formatted_context or "\n\n".join(
+                    f"[{c.title}] (Source: {c.source})\n{c.text or c.snippet}" for c in rag_sources
                 )
                 logger.info(f"Retrieved {len(rag_sources)} RAG knowledge chunks for explanation grounding.")
             else:

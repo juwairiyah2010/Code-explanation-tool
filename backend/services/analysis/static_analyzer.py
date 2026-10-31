@@ -3,7 +3,7 @@
 from typing import Any
 from backend.schemas.explanation import (
     CodeConstructs,
-    StaticHint,
+    AnalysisFinding,
     SyntaxBlock,
 )
 from backend.services.analysis.rules import (
@@ -11,6 +11,14 @@ from backend.services.analysis.rules import (
     UnusedVariablesRule,
     DeepNestingRule,
     MissingReturnsRule,
+    SyntaxErrorsRule,
+    ControlFlowRule,
+    VariableUsageRule,
+    ImportHygieneRule,
+    ExceptionHandlingRule,
+    CodeQualityRule,
+    SecurityRule,
+    PerformanceRule,
 )
 
 
@@ -20,9 +28,17 @@ class StaticAnalyzer:
     def __init__(self, rules: list[BaseStaticRule] | None = None):
         if rules is None:
             self.rules: list[BaseStaticRule] = [
+                SyntaxErrorsRule(),
                 UnusedVariablesRule(),
                 DeepNestingRule(),
                 MissingReturnsRule(),
+                ControlFlowRule(),
+                VariableUsageRule(),
+                ImportHygieneRule(),
+                ExceptionHandlingRule(),
+                CodeQualityRule(),
+                SecurityRule(),
+                PerformanceRule(),
             ]
         else:
             self.rules = rules
@@ -33,9 +49,9 @@ class StaticAnalyzer:
         language: str,
         ast_tree: Any,
         constructs: CodeConstructs,
-    ) -> list[StaticHint]:
+    ) -> list[AnalysisFinding]:
         """Execute all registered static analysis rules."""
-        hints: list[StaticHint] = []
+        hints: list[AnalysisFinding] = []
         for rule in self.rules:
             try:
                 rule_hints = rule.analyze(code, language, ast_tree, constructs)

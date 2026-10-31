@@ -4,9 +4,8 @@ Tests at least 10 diverse sample programs covering language detection, construct
 syntax blocks splitting, and static rules (unused variables, deep nesting, missing returns).
 """
 
-import pytest
 from backend.services.detector import detect_language, detect_by_syntax
-from backend.services.parsers import get_parser, PythonCodeParser, JavaScriptCodeParser
+from backend.services.parsers import get_parser
 
 
 # ---------------------------------------------------------------------------

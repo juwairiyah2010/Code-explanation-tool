@@ -1,7 +1,10 @@
 """Base interface for LLM providers."""
 
 from abc import ABC, abstractmethod
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
+
+if TYPE_CHECKING:
+    from backend.schemas.quiz import QuizResponse
 
 
 from backend.schemas.explanation import AlgorithmComplexity, BlockExplanation, ConceptTag

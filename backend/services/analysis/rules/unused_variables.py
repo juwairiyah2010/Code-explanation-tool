@@ -1,9 +1,9 @@
-"""Rule checking for variables defined or assigned but never subsequently referenced."""
+"""Rule checking for variables and imports defined or assigned but never subsequently referenced."""
 
 import ast
 import re
 from typing import Any
-from backend.schemas.explanation import StaticHint
+from backend.schemas.explanation import AnalysisFinding
 from backend.services.analysis.rules.base_rule import BaseStaticRule
 
 
@@ -14,21 +14,27 @@ class UnusedVariablesRule(BaseStaticRule):
     def rule_id(self) -> str:
         return "UNUSED_VARIABLE"
 
-    def analyze(self, code: str, language: str, ast_tree: Any, raw_constructs: Any) -> list[StaticHint]:
-        hints: list[StaticHint] = []
-        if language == "python" and isinstance(ast_tree, ast.AST):
-            hints.extend(self._analyze_python(ast_tree))
-        elif language == "javascript":
-            hints.extend(self._analyze_javascript(code, ast_tree, raw_constructs))
-        return hints
+    @property
+    def category(self) -> str:
+        return "unused code"
 
-    def _analyze_python(self, tree: ast.AST) -> list[StaticHint]:
-        hints: list[StaticHint] = []
+    def analyze(
+        self, code: str, language: str, ast_tree: Any, raw_constructs: Any
+    ) -> list[AnalysisFinding]:
+        findings: list[AnalysisFinding] = []
+        if language == "python" and isinstance(ast_tree, ast.AST):
+            findings.extend(self._analyze_python(ast_tree))
+        elif language == "javascript":
+            findings.extend(self._analyze_javascript(code, ast_tree, raw_constructs))
+        return findings
+
+    def _analyze_python(self, tree: ast.AST) -> list[AnalysisFinding]:
+        findings: list[AnalysisFinding] = []
 
         # Analyze each function scope
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                assigned_vars: dict[str, int] = {}
+                assigned_vars: dict[str, tuple[int, int | None]] = {}
                 loaded_vars: set[str] = set()
 
                 for subnode in ast.walk(node):
@@ -40,53 +46,86 @@ class UnusedVariablesRule(BaseStaticRule):
 
                         if isinstance(subnode.ctx, ast.Store):
                             if name not in assigned_vars:
-                                assigned_vars[name] = subnode.lineno
+                                col = getattr(subnode, "col_offset", None)
+                                assigned_vars[name] = (subnode.lineno, col)
                         elif isinstance(subnode.ctx, ast.Load):
                             loaded_vars.add(name)
 
                 # Check which assigned variables were never loaded
-                for var_name, lineno in assigned_vars.items():
-                    # Exclude function parameters from strict assignment check
+                for var_name, (lineno, col) in assigned_vars.items():
                     params = [a.arg for a in node.args.args]
                     if var_name not in loaded_vars and var_name not in params:
-                        hints.append(
-                            StaticHint(
+                        tech_desc = f"Variable '{var_name}' is assigned on line {lineno} but never used."
+                        beginner_exp = (
+                            f"You created a box named '{var_name}' and stored something inside it, "
+                            f"but your program never reads from this box again. Leaving unused variables "
+                            f"clutters your code and can confuse someone trying to read it."
+                        )
+                        suggested_fix = (
+                            f"Remove '{var_name}' if it is not needed, or prefix with '_' "
+                            f"(e.g. '_{var_name}') if you intentionally want to ignore it."
+                        )
+                        findings.append(
+                            AnalysisFinding(
                                 rule_id=self.rule_id,
+                                language="python",
                                 severity="warning",
-                                message=f"Variable '{var_name}' is assigned on line {lineno} but never used.",
+                                line_number=lineno,
+                                column_number=col,
+                                category="unused code",
+                                title="Unused Variable Assignment",
+                                technical_description=tech_desc,
+                                beginner_explanation=beginner_exp,
+                                suggested_fix=suggested_fix,
                                 line_start=lineno,
                                 line_end=lineno,
-                                suggestion=f"Remove '{var_name}' or prefix with '_' (e.g. '_{var_name}') if intentionally unused.",
+                                message=tech_desc,
+                                suggestion=suggested_fix,
                             )
                         )
 
-        return hints
+        return findings
 
-    def _analyze_javascript(self, code: str, ast_tree: Any, raw_constructs: Any) -> list[StaticHint]:
-        hints: list[StaticHint] = []
+    def _analyze_javascript(
+        self, code: str, ast_tree: Any, raw_constructs: Any
+    ) -> list[AnalysisFinding]:
+        findings: list[AnalysisFinding] = []
         lines = code.splitlines()
 
-        # Check declared variables from constructs
         if raw_constructs and hasattr(raw_constructs, "assignments"):
             for assign in raw_constructs.assignments:
                 for target in assign.targets:
                     if target.startswith("_") or target in ("this", "window", "global"):
                         continue
                     line_idx = assign.line_start - 1
-                    # Look at rest of the file/function for usages
-                    subsequent_code = "\n".join(lines[line_idx + 1 :]) if line_idx + 1 < len(lines) else ""
-                    # Check if target is referenced as a whole identifier in subsequent lines
+                    subsequent_code = (
+                        "\n".join(lines[line_idx + 1 :]) if line_idx + 1 < len(lines) else ""
+                    )
                     pattern = rf"\b{re.escape(target)}\b"
                     if not re.search(pattern, subsequent_code):
-                        hints.append(
-                            StaticHint(
+                        tech_desc = f"Variable '{target}' is declared on line {assign.line_start} but never referenced afterwards."
+                        beginner_exp = (
+                            f"Variable '{target}' was declared but never read. "
+                            f"Unused variables waste memory and make code harder to read."
+                        )
+                        suggested_fix = f"Remove '{target}' or prefix with '_' if intentionally ignored."
+                        findings.append(
+                            AnalysisFinding(
                                 rule_id=self.rule_id,
+                                language="javascript",
                                 severity="warning",
-                                message=f"Variable '{target}' is declared on line {assign.line_start} but never referenced afterwards.",
+                                line_number=assign.line_start,
+                                column_number=None,
+                                category="unused code",
+                                title="Unused Variable Declaration",
+                                technical_description=tech_desc,
+                                beginner_explanation=beginner_exp,
+                                suggested_fix=suggested_fix,
                                 line_start=assign.line_start,
                                 line_end=assign.line_end,
-                                suggestion=f"Remove '{target}' or prefix with '_' if intentionally ignored.",
+                                message=tech_desc,
+                                suggestion=suggested_fix,
                             )
                         )
 
-        return hints
+        return findings

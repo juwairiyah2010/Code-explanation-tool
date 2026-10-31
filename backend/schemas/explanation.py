@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Any, Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 LanguageType = Literal["python", "javascript", "auto", "unknown"]
@@ -96,13 +96,60 @@ class SyntaxBlock(BaseModel):
     complexity_score: int = Field(1, description="Cyclomatic complexity within this block")
 
 
-class StaticHint(BaseModel):
-    rule_id: str = Field(..., description="Unique rule identifier (e.g. UNUSED_VARIABLE, DEEP_NESTING)")
-    severity: HintSeverity = Field("warning", description="Severity level: info, warning, error")
-    message: str = Field(..., description="Issue explanation")
-    line_start: int = Field(..., description="Line where issue begins")
-    line_end: int = Field(..., description="Line where issue ends")
-    suggestion: str | None = Field(None, description="Recommended remediation")
+class AnalysisFinding(BaseModel):
+    """Normalized static code analysis finding formatted for both developers and beginners."""
+
+    rule_id: str = Field(..., description="Unique rule code (e.g. UNUSED_VARIABLE, BARE_EXCEPT)")
+    language: str = Field("python", description="Target language: python or javascript")
+    severity: str = Field("warning", description="Severity level: info, warning, error")
+    line_number: int = Field(1, description="Line number where issue originates")
+    column_number: int | None = Field(None, description="Column offset when available")
+    category: str = Field("code quality", description="Category: syntax, unused code, complexity, control flow, return behavior, variable usage, imports, exception handling, code quality, security, performance")
+    title: str = Field(..., description="Short human-friendly title of the finding")
+    technical_description: str = Field(..., description="Concise technical description")
+    beginner_explanation: str = Field(..., description="Intuitive educational explanation for beginners")
+    suggested_fix: str = Field(..., description="Actionable code remediation advice")
+
+    # Compatibility aliases for existing tests and UI referencing StaticHint
+    line_start: int = 1
+    line_end: int = 1
+    message: str = ""
+    suggestion: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_finding_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Line numbers
+            if "line_number" in data:
+                data.setdefault("line_start", data["line_number"])
+                data.setdefault("line_end", data.get("line_end", data["line_number"]))
+            elif "line_start" in data:
+                data.setdefault("line_number", data["line_start"])
+                data.setdefault("line_end", data["line_start"])
+
+            # Descriptions
+            if "technical_description" in data:
+                data.setdefault("message", data["technical_description"])
+            elif "message" in data:
+                data.setdefault("technical_description", data["message"])
+
+            # Suggestions
+            if "suggested_fix" in data:
+                data.setdefault("suggestion", data["suggested_fix"])
+            elif "suggestion" in data:
+                data.setdefault("suggested_fix", data["suggestion"] or "")
+
+            # Title & Beginner explanation defaults
+            if "title" not in data and "rule_id" in data:
+                data["title"] = data["rule_id"].replace("_", " ").title()
+            if "beginner_explanation" not in data:
+                data["beginner_explanation"] = data.get("technical_description") or data.get("message", "")
+        return data
+
+
+# StaticHint is now an alias of AnalysisFinding for full backward compatibility
+StaticHint = AnalysisFinding
 
 
 class SyntaxErrorInfo(BaseModel):
@@ -150,15 +197,28 @@ class CodeAnalysisResponse(BaseModel):
     syntax_errors: list[SyntaxErrorInfo] = Field(default_factory=list, description="List of syntax error details")
     blocks: list[SyntaxBlock] = Field(default_factory=list, description="Logical syntax blocks")
     constructs: CodeConstructs = Field(default_factory=CodeConstructs, description="Extracted language constructs")
-    static_hints: list[StaticHint] = Field(default_factory=list, description="Static analysis rule hints")
+    static_hints: list[AnalysisFinding] = Field(default_factory=list, description="Static analysis rule findings (compatible with StaticHint)")
+    findings: list[AnalysisFinding] = Field(default_factory=list, description="Structured analysis findings with beginner explanations")
     complexity_score: int = Field(1, description="Total cyclomatic complexity score")
+    cyclomatic_complexity: int = Field(1, description="Cyclomatic complexity score")
     max_nesting_depth: int = Field(0, description="Maximum indentation / nesting level")
+    maximum_nesting_depth: int = Field(0, description="Maximum indentation / nesting level")
+    function_count: int = Field(0, description="Number of functions defined")
+    class_count: int = Field(0, description="Number of classes defined")
+    import_count: int = Field(0, description="Number of import statements")
+    lines_of_code: dict[str, int] = Field(default_factory=dict, description="Breakdown of lines: total, code, comment, blank")
+    duplicate_patterns: list[dict[str, Any]] = Field(default_factory=list, description="Repeated pattern findings")
     metrics: dict[str, Any] = Field(default_factory=dict, description="Detailed metrics (lines, tokens, counts)")
+    summary: str = Field("", description="Overview summary of code structure and findings")
 
     # Legacy fields for backward compatibility
     functions: list[ASTNodeInfo] = Field(default_factory=list)
     classes: list[ASTNodeInfo] = Field(default_factory=list)
     imports: list[str] = Field(default_factory=list)
+
+
+# Alias AnalysisResult to CodeAnalysisResponse for unified interface
+AnalysisResult = CodeAnalysisResponse
 
 
 from backend.schemas.rag import RAGSourceCitation

@@ -2,7 +2,7 @@
 
 import ast
 from typing import Any
-from backend.schemas.explanation import StaticHint
+from backend.schemas.explanation import AnalysisFinding
 from backend.services.analysis.rules.base_rule import BaseStaticRule
 
 MAX_RECOMMENDED_DEPTH = 3
@@ -18,16 +18,22 @@ class DeepNestingRule(BaseStaticRule):
     def rule_id(self) -> str:
         return "DEEP_NESTING"
 
-    def analyze(self, code: str, language: str, ast_tree: Any, raw_constructs: Any) -> list[StaticHint]:
-        hints: list[StaticHint] = []
-        if language == "python" and isinstance(ast_tree, ast.AST):
-            hints.extend(self._analyze_python(ast_tree))
-        elif language == "javascript":
-            hints.extend(self._analyze_javascript(code, ast_tree))
-        return hints
+    @property
+    def category(self) -> str:
+        return "complexity"
 
-    def _analyze_python(self, tree: ast.AST) -> list[StaticHint]:
-        hints: list[StaticHint] = []
+    def analyze(
+        self, code: str, language: str, ast_tree: Any, raw_constructs: Any
+    ) -> list[AnalysisFinding]:
+        findings: list[AnalysisFinding] = []
+        if language == "python" and isinstance(ast_tree, ast.AST):
+            findings.extend(self._analyze_python(ast_tree))
+        elif language == "javascript":
+            findings.extend(self._analyze_javascript(code, ast_tree))
+        return findings
+
+    def _analyze_python(self, tree: ast.AST) -> list[AnalysisFinding]:
+        findings: list[AnalysisFinding] = []
 
         def check_node(node: ast.AST, current_depth: int) -> None:
             is_nesting_construct = isinstance(
@@ -47,72 +53,86 @@ class DeepNestingRule(BaseStaticRule):
 
             if is_nesting_construct and new_depth > self.max_depth:
                 end_lineno = getattr(node, "end_lineno", node.lineno)
-                hints.append(
-                    StaticHint(
+                col = getattr(node, "col_offset", None)
+                tech_desc = f"Deeply nested control structure at depth {new_depth} (exceeds recommended threshold of {self.max_depth})."
+                beginner_exp = (
+                    f"Your code is indented {new_depth} levels deep (like boxes inside boxes inside boxes). "
+                    f"When code is nested too deeply, it becomes very hard to keep track of all the conditions "
+                    f"required to reach this line. This is often called the 'Pyramid of Doom'."
+                )
+                suggested_fix = (
+                    "Use 'guard clauses' (check for invalid cases early and `return` immediately), "
+                    "or extract the inner loop/logic into a separate helper function."
+                )
+                findings.append(
+                    AnalysisFinding(
                         rule_id=self.rule_id,
+                        language="python",
                         severity="warning",
-                        message=f"Deeply nested control structure at depth {new_depth} (exceeds recommended threshold of {self.max_depth}).",
+                        line_number=node.lineno,
+                        column_number=col,
+                        category="complexity",
+                        title="Excessive Nesting Depth",
+                        technical_description=tech_desc,
+                        beginner_explanation=beginner_exp,
+                        suggested_fix=suggested_fix,
                         line_start=node.lineno,
                         line_end=end_lineno,
-                        suggestion="Refactor using guard clauses, early returns, or decompose into smaller helper functions.",
+                        message=tech_desc,
+                        suggestion=suggested_fix,
                     )
                 )
 
             for child in ast.iter_child_nodes(node):
                 check_node(child, new_depth)
 
-        check_node(tree, 0)
-        return hints
+        for top_node in ast.iter_child_nodes(tree):
+            check_node(top_node, 0)
 
-    def _analyze_javascript(self, code: str, ast_tree: Any) -> list[StaticHint]:
-        hints: list[StaticHint] = []
-        if ast_tree and hasattr(ast_tree, "root_node"):
-            # Tree-sitter AST
-            def check_ts_node(node: Any, current_depth: int) -> None:
-                is_nest = node.type in (
-                    "if_statement",
-                    "for_statement",
-                    "for_in_statement",
-                    "for_of_statement",
-                    "while_statement",
-                    "do_statement",
-                    "try_statement",
-                    "switch_statement",
+        return findings
+
+    def _analyze_javascript(self, code: str, ast_tree: Any) -> list[AnalysisFinding]:
+        findings: list[AnalysisFinding] = []
+        lines = code.splitlines()
+
+        for idx, line in enumerate(lines, start=1):
+            stripped = line.lstrip()
+            if not stripped or stripped.startswith("//") or stripped.startswith("/*"):
+                continue
+
+            leading_spaces = len(line) - len(stripped)
+            indent_level = leading_spaces // 4 if "\t" not in line else leading_spaces
+            if "\t" in line:
+                indent_level = line.count("\t")
+
+            if indent_level > self.max_depth and any(
+                stripped.startswith(kw) for kw in ("if", "for", "while", "switch", "try")
+            ):
+                tech_desc = f"Deeply nested block at indentation level {indent_level} (exceeds {self.max_depth})."
+                beginner_exp = (
+                    f"This block is nested {indent_level} levels deep. Code that slopes sharply to the right "
+                    f"makes it difficult to read and test."
                 )
-                new_depth = current_depth + 1 if is_nest else current_depth
-                if is_nest and new_depth > self.max_depth:
-                    start_line = node.start_point[0] + 1
-                    end_line = node.end_point[0] + 1
-                    hints.append(
-                        StaticHint(
-                            rule_id=self.rule_id,
-                            severity="warning",
-                            message=f"Deeply nested block at depth {new_depth} (exceeds recommended threshold of {self.max_depth}).",
-                            line_start=start_line,
-                            line_end=end_line,
-                            suggestion="Refactor with guard clauses, early returns, or extract helper functions.",
-                        )
+                suggested_fix = (
+                    "Refactor using early returns or extract inner loops into named functions."
+                )
+                findings.append(
+                    AnalysisFinding(
+                        rule_id=self.rule_id,
+                        language="javascript",
+                        severity="warning",
+                        line_number=idx,
+                        column_number=leading_spaces,
+                        category="complexity",
+                        title="Excessive Nesting Depth",
+                        technical_description=tech_desc,
+                        beginner_explanation=beginner_exp,
+                        suggested_fix=suggested_fix,
+                        line_start=idx,
+                        line_end=idx,
+                        message=tech_desc,
+                        suggestion=suggested_fix,
                     )
-                for child in node.children:
-                    check_ts_node(child, new_depth)
+                )
 
-            check_ts_node(ast_tree.root_node, 0)
-        else:
-            # Indentation-based heuristic fallback
-            for i, line in enumerate(code.splitlines(), start=1):
-                if not line.strip() or line.strip().startswith("//"):
-                    continue
-                leading_spaces = len(line) - len(line.lstrip(" "))
-                depth = leading_spaces // 4 if "    " in line else leading_spaces // 2
-                if depth > self.max_depth + 1 and any(kw in line for kw in ("if ", "for ", "while ", "switch ")):
-                    hints.append(
-                        StaticHint(
-                            rule_id=self.rule_id,
-                            severity="warning",
-                            message=f"Deeply nested structure detected at line {i} (depth ~{depth}).",
-                            line_start=i,
-                            line_end=i,
-                            suggestion="Refactor complex blocks using early returns or modular methods.",
-                        )
-                    )
-        return hints
+        return findings

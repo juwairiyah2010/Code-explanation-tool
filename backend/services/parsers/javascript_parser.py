@@ -383,6 +383,17 @@ class JavaScriptCodeParser(BaseCodeParser):
 
             primary_err = syntax_errors[0].message if syntax_errors else None
 
+            loc = {
+                "total": total_lines,
+                "code": max(0, total_lines - blank_lines - comment_lines),
+                "blank": blank_lines,
+                "comment": comment_lines,
+            }
+            summary = (
+                f"JavaScript code analyzed: {len(static_hints)} finding(s) across {total_lines} lines "
+                f"(complexity: {max(1, complexity)})."
+            )
+
             return CodeAnalysisResponse(
                 language="javascript",
                 detection_method=detection_method,
@@ -392,9 +403,18 @@ class JavaScriptCodeParser(BaseCodeParser):
                 blocks=blocks,
                 constructs=constructs,
                 static_hints=static_hints,
+                findings=static_hints,
                 complexity_score=max(1, complexity),
+                cyclomatic_complexity=max(1, complexity),
                 max_nesting_depth=max_nesting,
+                maximum_nesting_depth=max_nesting,
+                function_count=len(functions),
+                class_count=len(classes),
+                import_count=len(imports),
+                lines_of_code=loc,
+                duplicate_patterns=[],
                 metrics=metrics,
+                summary=summary,
                 functions=legacy_functions,
                 classes=legacy_classes,
                 imports=legacy_imports,
@@ -561,6 +581,17 @@ class JavaScriptCodeParser(BaseCodeParser):
             "parser_engine": "heuristic_fallback",
         }
 
+        loc = {
+            "total": total_lines,
+            "code": max(0, total_lines - blank_lines - comment_lines),
+            "blank": blank_lines,
+            "comment": comment_lines,
+        }
+        summary = (
+            f"JavaScript code analyzed: {len(static_hints)} finding(s) across {total_lines} lines "
+            f"(complexity: {max(1, complexity)})."
+        )
+
         return CodeAnalysisResponse(
             language="javascript",
             detection_method=detection_method,
@@ -570,9 +601,18 @@ class JavaScriptCodeParser(BaseCodeParser):
             blocks=blocks,
             constructs=constructs,
             static_hints=static_hints,
+            findings=static_hints,
             complexity_score=max(1, complexity),
+            cyclomatic_complexity=max(1, complexity),
             max_nesting_depth=1,
+            maximum_nesting_depth=1,
+            function_count=len(functions),
+            class_count=len(classes),
+            import_count=len(imports),
+            lines_of_code=loc,
+            duplicate_patterns=[],
             metrics=metrics,
+            summary=summary,
             functions=legacy_functions,
             classes=legacy_classes,
             imports=[i.module for i in imports],

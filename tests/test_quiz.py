@@ -1,7 +1,6 @@
-import pytest
 from fastapi.testclient import TestClient
 from backend.main import app
-from backend.schemas.quiz import QuizResponse, QuizQuestion, QuizOption, GlossaryTerm, CodeImprovement
+from backend.schemas.quiz import QuizResponse, QuizQuestion, QuizOption
 from backend.services.llm.base import BaseLLMService
 
 client = TestClient(app)

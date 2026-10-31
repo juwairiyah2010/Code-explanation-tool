@@ -1,9 +1,12 @@
+"""Execution tracing endpoints."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from backend.api.deps import get_tracer_service
 from backend.schemas.trace import TraceRequest, TraceResponse
 from backend.services.tracer_service import TracerService
 
 router = APIRouter()
+
 
 @router.post(
     "",
@@ -12,8 +15,11 @@ router = APIRouter()
     summary="Generate Execution Trace",
     description="Trace Python execution step-by-step in an isolated subprocess.",
 )
-async def create_trace(request: TraceRequest):
-    tracer = TracerService()
+async def create_trace(
+    request: TraceRequest,
+    tracer: TracerService = Depends(get_tracer_service),
+) -> TraceResponse:
+    """Trace code execution and capture variable frames."""
     try:
         response = await tracer.trace_code(request)
         if not response.success:
