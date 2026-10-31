@@ -1,0 +1,1073 @@
+{
+  "total_benchmark_cases": 15,
+  "summary_metrics": {
+    "analysis_accuracy": 100.0,
+    "trace_accuracy": 100.0,
+    "retrieval_precision_at_k": 0.278,
+    "explanation_coverage": 1.0,
+    "invalid_line_reference_rate": 0.0,
+    "quiz_accuracy": 100.0,
+    "average_latency_ms": 146.17
+  },
+  "latency_breakdown_ms": {
+    "average_analysis": 2.5,
+    "average_trace": 77.13,
+    "average_rag": 6.91,
+    "average_explanation": 54.79,
+    "average_quiz": 52.88,
+    "e2e_median": 157.99,
+    "e2e_p95": 249.4
+  },
+  "cases": [
+    {
+      "case_id": "py_basic_variables",
+      "name": "Python Variable Calculations",
+      "language": "python",
+      "category": "basic_variables",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 1,
+          "expected_complexity": [
+            1,
+            1
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "assignments",
+            "calls"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 7.12
+        },
+        "execution_trace": {
+          "executed": true,
+          "success": true,
+          "steps_count": 7,
+          "output_matched": true,
+          "actual_output": "Area: 50, Perimeter: 30\n",
+          "expected_output": "Area: 50, Perimeter: 30\n",
+          "latency_ms": 74.86
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "variables",
+            "arithmetic"
+          ],
+          "precision_scores": [
+            0.333,
+            1.0
+          ],
+          "mean_precision": 0.667
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 85.03
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 81.68
+        },
+        "total_latency_ms": 248.69
+      }
+    },
+    {
+      "case_id": "py_conditionals",
+      "name": "Python Age Category Classifier",
+      "language": "python",
+      "category": "conditionals",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 4,
+          "expected_complexity": [
+            3,
+            5
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "conditions",
+            "assignments",
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [
+            "MISSING_RETURN"
+          ],
+          "findings_correct": true,
+          "latency_ms": 3.29
+        },
+        "execution_trace": {
+          "executed": true,
+          "success": true,
+          "steps_count": 11,
+          "output_matched": true,
+          "actual_output": "Status: teen\n",
+          "expected_output": "Status: teen\n",
+          "latency_ms": 76.61
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "conditionals",
+            "functions"
+          ],
+          "precision_scores": [
+            0.0,
+            1.0
+          ],
+          "mean_precision": 0.5
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 81.09
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 78.95
+        },
+        "total_latency_ms": 239.94
+      }
+    },
+    {
+      "case_id": "py_loops",
+      "name": "Python Loop Aggregation",
+      "language": "python",
+      "category": "loops",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 3,
+          "expected_complexity": [
+            2,
+            3
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "conditions",
+            "assignments",
+            "calls",
+            "loops"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 2.66
+        },
+        "execution_trace": {
+          "executed": true,
+          "success": true,
+          "steps_count": 19,
+          "output_matched": true,
+          "actual_output": "Odd Sum: 9\n",
+          "expected_output": "Odd Sum: 9\n",
+          "latency_ms": 77.25
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "loops",
+            "iteration"
+          ],
+          "precision_scores": [
+            0.333,
+            0.0
+          ],
+          "mean_precision": 0.167
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 83.23
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 79.03
+        },
+        "total_latency_ms": 242.17
+      }
+    },
+    {
+      "case_id": "py_functions",
+      "name": "Python Pure Function and Multiplication",
+      "language": "python",
+      "category": "functions",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 1,
+          "expected_complexity": [
+            1,
+            2
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "assignments",
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 3.07
+        },
+        "execution_trace": {
+          "executed": true,
+          "success": true,
+          "steps_count": 8,
+          "output_matched": true,
+          "actual_output": "Tax: 8.0\n",
+          "expected_output": "Tax: 8.0\n",
+          "latency_ms": 77.58
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "functions",
+            "parameters"
+          ],
+          "precision_scores": [
+            1.0,
+            0.0
+          ],
+          "mean_precision": 0.5
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 79.34
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 78.38
+        },
+        "total_latency_ms": 238.37
+      }
+    },
+    {
+      "case_id": "py_recursion",
+      "name": "Python Recursive Fibonacci",
+      "language": "python",
+      "category": "recursion",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 3,
+          "expected_complexity": [
+            3,
+            4
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "conditions",
+            "assignments",
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 3.41
+        },
+        "execution_trace": {
+          "executed": true,
+          "success": true,
+          "steps_count": 77,
+          "output_matched": true,
+          "actual_output": "Fib 5: 5\n",
+          "expected_output": "Fib 5: 5\n",
+          "latency_ms": 79.23
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "recursion",
+            "base case"
+          ],
+          "precision_scores": [
+            1.0,
+            0.5
+          ],
+          "mean_precision": 0.75
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 84.76
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 82.0
+        },
+        "total_latency_ms": 249.4
+      }
+    },
+    {
+      "case_id": "py_classes",
+      "name": "Python Bank Account Class",
+      "language": "python",
+      "category": "classes",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 6,
+          "expected_complexity": [
+            2,
+            6
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "conditions",
+            "assignments",
+            "calls",
+            "classes",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 4.5
+        },
+        "execution_trace": {
+          "executed": true,
+          "success": true,
+          "steps_count": 20,
+          "output_matched": true,
+          "actual_output": "Alice: 150.0\n",
+          "expected_output": "Alice: 150.0\n",
+          "latency_ms": 77.46
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "classes",
+            "methods"
+          ],
+          "precision_scores": [
+            0.0,
+            1.0
+          ],
+          "mean_precision": 0.5
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 84.1
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 79.95
+        },
+        "total_latency_ms": 246.01
+      }
+    },
+    {
+      "case_id": "py_exceptions",
+      "name": "Python Safe Division with Handled Exception",
+      "language": "python",
+      "category": "exceptions",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 2,
+          "expected_complexity": [
+            2,
+            3
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "assignments",
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [
+            "MISSING_RETURN"
+          ],
+          "findings_correct": true,
+          "latency_ms": 3.47
+        },
+        "execution_trace": {
+          "executed": true,
+          "success": true,
+          "steps_count": 13,
+          "output_matched": true,
+          "actual_output": "Error: cannot divide by zero\nResult: None\n",
+          "expected_output": "Error: cannot divide by zero\nResult: None\n",
+          "latency_ms": 76.92
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "exceptions",
+            "try except"
+          ],
+          "precision_scores": [
+            0.0,
+            0.0
+          ],
+          "mean_precision": 0.0
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 82.23
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 80.32
+        },
+        "total_latency_ms": 242.94
+      }
+    },
+    {
+      "case_id": "py_beginner_mistake",
+      "name": "Python Shadowed Builtin and Bare Except",
+      "language": "python",
+      "category": "common_beginner_mistakes",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 2,
+          "expected_complexity": [
+            2,
+            3
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [
+            "SHADOWED_BUILTIN",
+            "BARE_EXCEPT"
+          ],
+          "detected_findings": [
+            "SHADOWED_BUILTIN",
+            "BARE_EXCEPT",
+            "MISSING_RETURN"
+          ],
+          "findings_correct": true,
+          "latency_ms": 1.73
+        },
+        "execution_trace": {
+          "executed": false,
+          "reason": "Not configured for execution sandbox or non-Python"
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "shadowing",
+            "bare except"
+          ],
+          "precision_scores": [
+            0.0,
+            0.0
+          ],
+          "mean_precision": 0.0
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 77.64
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 76.47
+        },
+        "total_latency_ms": 155.84
+      }
+    },
+    {
+      "case_id": "py_inefficient_code",
+      "name": "Python Repeated String Concatenation in Loop",
+      "language": "python",
+      "category": "inefficient_code",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 2,
+          "expected_complexity": [
+            2,
+            3
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "loops",
+            "assignments",
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [
+            "INEFFICIENT_STRING_CONCAT"
+          ],
+          "detected_findings": [
+            "INEFFICIENT_STRING_CONCAT"
+          ],
+          "findings_correct": true,
+          "latency_ms": 2.31
+        },
+        "execution_trace": {
+          "executed": false,
+          "reason": "Not configured for execution sandbox or non-Python"
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "performance",
+            "string immutability"
+          ],
+          "precision_scores": [
+            0.0,
+            0.0
+          ],
+          "mean_precision": 0.0
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 78.83
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 76.85
+        },
+        "total_latency_ms": 157.99
+      }
+    },
+    {
+      "case_id": "py_security_eval",
+      "name": "Python Dynamic Eval and Hardcoded Secret",
+      "language": "python",
+      "category": "security_related",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 1,
+          "expected_complexity": [
+            1,
+            2
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "assignments",
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [
+            "DANGEROUS_EVAL",
+            "HARDCODED_SECRET"
+          ],
+          "detected_findings": [
+            "DANGEROUS_EVAL",
+            "HARDCODED_SECRET"
+          ],
+          "findings_correct": true,
+          "latency_ms": 1.99
+        },
+        "execution_trace": {
+          "executed": false,
+          "reason": "Not configured for execution sandbox or non-Python"
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "security",
+            "code injection"
+          ],
+          "precision_scores": [
+            0.0,
+            0.0
+          ],
+          "mean_precision": 0.0
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 77.85
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 76.21
+        },
+        "total_latency_ms": 156.05
+      }
+    },
+    {
+      "case_id": "js_basic_variables_and_functions",
+      "name": "JavaScript Pure Math Function",
+      "language": "javascript",
+      "category": "basic_variables",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 1,
+          "expected_complexity": [
+            1,
+            2
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "assignments",
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 1.31
+        },
+        "execution_trace": {
+          "executed": false,
+          "reason": "Not configured for execution sandbox or non-Python"
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "variables",
+            "functions"
+          ],
+          "precision_scores": [
+            0.333,
+            0.333
+          ],
+          "mean_precision": 0.333
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 1.89
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 0.73
+        },
+        "total_latency_ms": 3.94
+      }
+    },
+    {
+      "case_id": "js_loops_and_conditionals",
+      "name": "JavaScript Array Filter and Accumulator",
+      "language": "javascript",
+      "category": "loops",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 3,
+          "expected_complexity": [
+            2,
+            3
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "conditions",
+            "loops",
+            "assignments",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 0.69
+        },
+        "execution_trace": {
+          "executed": false,
+          "reason": "Not configured for execution sandbox or non-Python"
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "loops",
+            "for of"
+          ],
+          "precision_scores": [
+            0.333,
+            0.0
+          ],
+          "mean_precision": 0.167
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 1.38
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 0.6
+        },
+        "total_latency_ms": 2.67
+      }
+    },
+    {
+      "case_id": "js_classes_and_inheritance",
+      "name": "JavaScript ES6 Class Hierarchy",
+      "language": "javascript",
+      "category": "classes",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 1,
+          "expected_complexity": [
+            1,
+            3
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "classes",
+            "functions",
+            "calls"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 0.91
+        },
+        "execution_trace": {
+          "executed": false,
+          "reason": "Not configured for execution sandbox or non-Python"
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "classes",
+            "inheritance"
+          ],
+          "precision_scores": [
+            0.0,
+            0.0
+          ],
+          "mean_precision": 0.0
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 2.03
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 0.89
+        },
+        "total_latency_ms": 3.83
+      }
+    },
+    {
+      "case_id": "js_recursion",
+      "name": "JavaScript Recursive Factorial",
+      "language": "javascript",
+      "category": "recursion",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 2,
+          "expected_complexity": [
+            2,
+            3
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "conditions",
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [],
+          "findings_correct": true,
+          "latency_ms": 0.48
+        },
+        "execution_trace": {
+          "executed": false,
+          "reason": "Not configured for execution sandbox or non-Python"
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "recursion",
+            "base case"
+          ],
+          "precision_scores": [
+            0.667,
+            0.5
+          ],
+          "mean_precision": 0.583
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 1.13
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 0.5
+        },
+        "total_latency_ms": 2.11
+      }
+    },
+    {
+      "case_id": "js_exceptions",
+      "name": "JavaScript Try-Catch JSON Parser",
+      "language": "javascript",
+      "category": "exceptions",
+      "measurements": {
+        "static_analysis": {
+          "is_valid_syntax": true,
+          "detected_complexity": 1,
+          "expected_complexity": [
+            1,
+            3
+          ],
+          "complexity_correct": true,
+          "detected_constructs": [
+            "calls",
+            "functions"
+          ],
+          "constructs_correct": true,
+          "expected_findings": [],
+          "detected_findings": [
+            "MISSING_RETURN"
+          ],
+          "findings_correct": true,
+          "latency_ms": 0.59
+        },
+        "execution_trace": {
+          "executed": false,
+          "reason": "Not configured for execution sandbox or non-Python"
+        },
+        "rag_retrieval": {
+          "evaluated_concepts": [
+            "exceptions",
+            "try catch"
+          ],
+          "precision_scores": [
+            0.0,
+            0.0
+          ],
+          "mean_precision": 0.0
+        },
+        "explanation_grounding": {
+          "valid": true,
+          "coverage_score": 1.0,
+          "referenced_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid_references": [],
+          "unsupported_claims": [],
+          "latency_ms": 1.32
+        },
+        "quiz": {
+          "questions_generated": 5,
+          "options_valid": true,
+          "scoring_accurate": true,
+          "latency_ms": 0.66
+        },
+        "total_latency_ms": 2.57
+      }
+    }
+  ]
+}

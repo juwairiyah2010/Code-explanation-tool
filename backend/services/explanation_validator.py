@@ -91,6 +91,15 @@ class ExplanationValidator:
 
         return structured, None
 
+    def validate(
+        self,
+        code: str,
+        explanation: StructuredExplanationOutput,
+        analysis: CodeAnalysisResponse | None = None,
+    ) -> ExplanationValidationResult:
+        """Alias for validate_grounding supporting code, explanation, analysis parameters."""
+        return self.validate_grounding(structured=explanation, code=code, ast_result=analysis)
+
     def validate_grounding(
         self,
         structured: StructuredExplanationOutput,

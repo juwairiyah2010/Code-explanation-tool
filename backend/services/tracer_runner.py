@@ -22,6 +22,11 @@ MAX_OUTPUT_CHARS = 16384
 MAX_VAR_REPR_LEN = 120
 
 
+class StepLimitExceeded(Exception):
+    """Raised when execution exceeds the maximum allowable steps."""
+    pass
+
+
 def limit_resources() -> None:
     """Restrict CPU time and virtual memory to prevent runaway resource consumption."""
     try:
@@ -107,7 +112,7 @@ def run_trace(code_str: str, input_data: str | None = None, limit_system_resourc
 
         if step_count >= MAX_STEPS:
             hit_step_limit = True
-            return None
+            raise StepLimitExceeded(f"Execution step limit exceeded (maximum {MAX_STEPS} steps). Possible infinite loop.")
 
         lineno = frame.f_lineno
         executed_code = code_lines[lineno - 1].strip() if 1 <= lineno <= len(code_lines) else ""
@@ -321,6 +326,9 @@ def run_trace(code_str: str, input_data: str | None = None, limit_system_resourc
         if hit_step_limit:
             success = False
             error_msg = f"Execution step limit exceeded (maximum {MAX_STEPS} steps). Possible infinite loop."
+    except StepLimitExceeded as e:
+        success = False
+        error_msg = str(e)
     except Exception:
         success = False
         error_msg = traceback.format_exc().strip().split("\n")[-1]

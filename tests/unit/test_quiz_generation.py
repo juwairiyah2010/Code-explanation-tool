@@ -51,6 +51,8 @@ async def test_generate_learning_material_eight_items(learning_service: Learning
 
 def test_deterministic_scoring_and_mastery(learning_service: LearningService):
     """Grades answers deterministically and updates concept mastery percentages."""
+    import uuid
+    test_user_id = (uuid.uuid4().int % 900000) + 100000
     answers = {"q1": "A", "q2": "B"}
     questions = [
         {"id": "q1", "correct_answer": "A", "concept": "Functions"},
@@ -59,6 +61,7 @@ def test_deterministic_scoring_and_mastery(learning_service: LearningService):
     eval_res = learning_service.evaluate_answers(
         answers=answers,
         questions_payload=questions,
+        user_id=test_user_id,
     )
     assert eval_res.total_questions == 2
     assert eval_res.correct_count == 1

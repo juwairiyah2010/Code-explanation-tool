@@ -129,10 +129,10 @@ class AnalysisFinding(BaseModel):
                 data.setdefault("line_end", data["line_start"])
 
             # Descriptions
-            if "technical_description" in data:
-                data.setdefault("message", data["technical_description"])
-            elif "message" in data:
-                data.setdefault("technical_description", data["message"])
+            if not data.get("message"):
+                data["message"] = data.get("technical_description") or data.get("title") or ""
+            if not data.get("technical_description"):
+                data["technical_description"] = data.get("message") or data.get("title") or ""
 
             # Suggestions
             if "suggested_fix" in data:
@@ -172,15 +172,36 @@ class ConceptTag(BaseModel):
     definition: str = Field(..., description="Simple definition")
 
 class AlgorithmComplexity(BaseModel):
-    time_complexity: str = Field(..., description="Time complexity estimate")
-    space_complexity: str = Field(..., description="Space complexity estimate")
-    explanation: str = Field(..., description="Complexity explanation")
+    time_complexity: str = Field("O(1)", description="Time complexity estimate")
+    space_complexity: str = Field("O(1)", description="Space complexity estimate")
+    explanation: str = Field("", description="Complexity explanation")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sync_complexity_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "time" in data and "time_complexity" not in data:
+                data["time_complexity"] = data["time"]
+            if "space" in data and "space_complexity" not in data:
+                data["space_complexity"] = data["space"]
+            if "explanation" not in data:
+                data["explanation"] = ""
+        return data
 
 class LineExplanationItem(BaseModel):
     line_number: int = Field(..., description="Actual source line number (1-indexed)")
     code: str | None = Field(None, description="Actual code content of this line")
     explanation: str = Field(..., description="Explanation for this line")
     uncertainty_note: str | None = Field(None, description="Explicit uncertainty note if applicable")
+    ast_node: str | None = Field(None, description="Associated AST construct type if any")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sync_line_field(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "line" in data and "line_number" not in data:
+                data["line_number"] = data["line"]
+        return data
 
 class ConceptItem(BaseModel):
     name: str = Field(..., description="Concept or technique name")
@@ -203,6 +224,8 @@ class StructuredExplanationOutput(BaseModel):
     key_takeaways: list[str] = Field(default_factory=list, description="Key learning takeaways for the developer")
     suggested_improvements: list[str] = Field(default_factory=list, description="Concrete suggestions to improve or optimize the code")
     uncertainty_notes: list[str] = Field(default_factory=list, description="Explicit disclosures of any uncertainties or assumptions")
+    complexity: AlgorithmComplexity | None = Field(None, description="Complexity analysis if provided")
+    hints: list[Any] = Field(default_factory=list, description="Optional hints list")
 
 class LearnerProfile(BaseModel):
     level: str = Field("beginner", description="Learner expertise level: absolute beginner, beginner, intermediate, expert")
@@ -245,10 +268,47 @@ class CodeAnalysisResponse(BaseModel):
     metrics: dict[str, Any] = Field(default_factory=dict, description="Detailed metrics (lines, tokens, counts)")
     summary: str = Field("", description="Overview summary of code structure and findings")
 
-    # Legacy fields for backward compatibility
-    functions: list[ASTNodeInfo] = Field(default_factory=list)
-    classes: list[ASTNodeInfo] = Field(default_factory=list)
+    # Legacy & convenience fields for backward compatibility
+    functions: list[Any] = Field(default_factory=list)
+    classes: list[Any] = Field(default_factory=list)
     imports: list[str] = Field(default_factory=list)
+
+    @property
+    def is_valid(self) -> bool:
+        return self.is_valid_syntax
+
+    @property
+    def loops(self) -> list[LoopConstruct]:
+        return self.constructs.loops if self.constructs else []
+
+    @property
+    def conditions(self) -> list[ConditionConstruct]:
+        return self.constructs.conditions if self.constructs else []
+
+    @property
+    def assignments(self) -> list[AssignmentConstruct]:
+        return self.constructs.assignments if self.constructs else []
+
+    @property
+    def calls(self) -> list[CallConstruct]:
+        return self.constructs.calls if self.constructs else []
+
+    @property
+    def hints(self) -> list[AnalysisFinding]:
+        return self.static_hints or self.findings
+
+    @property
+    def complexity(self) -> int:
+        return self.complexity_score
+
+    @model_validator(mode="after")
+    def _populate_convenience_accessors(self) -> "CodeAnalysisResponse":
+        if self.constructs:
+            if not self.functions and self.constructs.functions:
+                self.functions = list(self.constructs.functions)  # type: ignore
+            if not self.classes and self.constructs.classes:
+                self.classes = list(self.constructs.classes)  # type: ignore
+        return self
 
 
 # Alias AnalysisResult to CodeAnalysisResponse for unified interface

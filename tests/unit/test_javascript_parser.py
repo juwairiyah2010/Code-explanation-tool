@@ -59,8 +59,8 @@ def test_parse_class_and_methods(parser: JavaScriptCodeParser):
 """
     res = parser.parse(code)
     assert res.is_valid is True
-    assert len(res.classes) >= 1
-    cls_node = res.classes[0]
+    assert len(res.constructs.classes) >= 1
+    cls_node = res.constructs.classes[0]
     assert cls_node.name == "DataStore"
     assert "BaseStore" in cls_node.bases
     assert "fetchItem" in cls_node.methods

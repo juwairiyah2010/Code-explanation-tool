@@ -23,8 +23,8 @@ def test_parse_valid_function(parser: PythonCodeParser):
     """Verify function construct extraction with parameters, return type, and docstring."""
     res = parser.parse(PYTHON_BASIC_MATH)
     assert res.is_valid is True
-    assert len(res.functions) == 1
-    fn = res.functions[0]
+    assert len(res.constructs.functions) == 1
+    fn = res.constructs.functions[0]
     assert fn.name == "add_numbers"
     assert fn.parameters == ["a", "b"]
     assert fn.return_type == "int"
@@ -42,8 +42,8 @@ def test_parse_class_construct(parser: PythonCodeParser):
 """
     res = parser.parse(code)
     assert res.is_valid is True
-    assert len(res.classes) == 1
-    cls_node = res.classes[0]
+    assert len(res.constructs.classes) == 1
+    cls_node = res.constructs.classes[0]
     assert cls_node.name == "Calculator"
     assert cls_node.bases == ["BaseEngine"]
     assert "multiply" in cls_node.methods
@@ -57,8 +57,8 @@ def test_parse_async_function(parser: PythonCodeParser):
 """
     res = parser.parse(code)
     assert res.is_valid is True
-    assert len(res.functions) == 1
-    assert res.functions[0].is_async is True
+    assert len(res.constructs.functions) == 1
+    assert res.constructs.functions[0].is_async is True
 
 
 def test_parse_loops(parser: PythonCodeParser):
@@ -102,7 +102,7 @@ def test_edge_case_nested_functions(parser: PythonCodeParser):
     """Parser must detect both outer and inner nested functions."""
     res = parser.parse(PYTHON_NESTED_FUNCTIONS)
     assert res.is_valid is True
-    fn_names = [f.name for f in res.functions]
+    fn_names = [f.name for f in res.constructs.functions]
     assert "make_multiplier" in fn_names
     assert "multiply" in fn_names
 
@@ -111,6 +111,6 @@ def test_edge_case_recursion(parser: PythonCodeParser):
     """Parser must capture recursive function definitions and conditionals."""
     res = parser.parse(PYTHON_RECURSION)
     assert res.is_valid is True
-    assert len(res.functions) == 1
-    assert res.functions[0].name == "factorial"
+    assert len(res.constructs.functions) == 1
+    assert res.constructs.functions[0].name == "factorial"
     assert len(res.conditions) >= 1

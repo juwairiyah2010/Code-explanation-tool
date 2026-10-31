@@ -62,7 +62,7 @@ while True:
     # the endpoint should catch timeout and return 400 or 408
     assert response.status_code in (400, 408)
     data = response.json()
-    assert "Execution failed" in data["detail"] or "timed out" in data["detail"].lower()
+    assert "Execution failed" in data["detail"] or "timed out" in data["detail"].lower() or "step limit" in data["detail"].lower()
 
 def test_trace_syntax_error():
     code = """

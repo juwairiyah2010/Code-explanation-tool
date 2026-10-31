@@ -8,6 +8,7 @@ and manages deterministic scoring and learner progress tracking.
 
 import json
 import re
+from typing import Any
 from backend.core.logging import logger
 from backend.schemas.explanation import CodeAnalysisResponse
 from backend.schemas.learning import (
@@ -457,3 +458,26 @@ class LearningService:
             execution_walkthrough=material.execution_walkthrough,
             final_takeaway=material.final_takeaway,
         )
+
+    def evaluate_answers(
+        self,
+        answers: dict[str, str],
+        questions_payload: list[dict[str, Any]],
+        user_id: int | None = None,
+        db: Any = None,
+    ):
+        """Deterministically evaluate quiz answers and calculate concept mastery."""
+        from backend.core.database import SessionLocal
+        from backend.repositories.learning_repo import LearningRepository
+
+        session = db or SessionLocal()
+        try:
+            repo = LearningRepository(session)
+            return repo.evaluate_and_record_attempt(
+                questions=questions_payload,
+                answers=answers,
+                user_id=user_id,
+            )
+        finally:
+            if db is None:
+                session.close()

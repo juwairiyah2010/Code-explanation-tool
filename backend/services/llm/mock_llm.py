@@ -17,6 +17,37 @@ class MockLLMService(BaseLLMService):
         self.should_fail_json: bool = False
         self.simulate_hallucinated_lines: bool = False
 
+    async def generate_structured_explanation(
+        self,
+        code: str,
+        language: str = "python",
+        mode: str = "beginner",
+    ):
+        """Deterministically produce a validated StructuredExplanationOutput instance."""
+        from backend.services.prompt_builder import PromptBuilder
+        from backend.services.parsers.python_parser import PythonCodeParser
+        from backend.services.parsers.javascript_parser import JavaScriptCodeParser
+        from backend.services.explanation_validator import ExplanationValidator
+
+        builder = PromptBuilder()
+        if language == "javascript":
+            ast_res = JavaScriptCodeParser().parse(code)
+        else:
+            ast_res = PythonCodeParser().parse(code)
+
+        sys_prompt, user_prompt = builder.build_prompts(
+            code=code,
+            language=language,
+            ast_result=ast_res,
+            mode=mode,
+        )
+        raw_json = await self.generate_chat_completion(sys_prompt, user_prompt)
+        validator = ExplanationValidator()
+        structured, err = validator.validate_and_sanitize(raw_json, code)
+        if structured is None:
+            raise ValueError(f"Failed to parse or validate structured explanation: {err}")
+        return structured
+
     async def generate_chat_completion(
         self,
         system_prompt: str,

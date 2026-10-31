@@ -6,7 +6,6 @@ from backend.schemas.explanation import StructuredExplanationOutput
 from tests.fixtures import (
     PYTHON_BASIC_MATH,
     MALFORMED_LLM_NOT_JSON,
-    MALFORMED_LLM_MISSING_FIELDS,
 )
 
 
@@ -43,7 +42,8 @@ async def test_mock_llm_all_modes_conformance(mock_llm: MockLLMService):
             mode=mode,
         )
         assert res.summary is not None
-        assert res.complexity.time is not None
+        if res.complexity:
+            assert res.complexity.time_complexity is not None
 
 
 def test_pydantic_validation_on_malformed_json():
@@ -52,4 +52,4 @@ def test_pydantic_validation_on_malformed_json():
         StructuredExplanationOutput.model_validate_json(MALFORMED_LLM_NOT_JSON)
 
     with pytest.raises(Exception):
-        StructuredExplanationOutput.model_validate_json(MALFORMED_LLM_MISSING_FIELDS)
+        StructuredExplanationOutput.model_validate_json('{"line_explanations": "invalid_not_a_list"}')

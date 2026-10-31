@@ -14,14 +14,15 @@ def populated_rag(db_session):
     embedding_svc = MockEmbeddingService(dimension=64)
 
     # Ingest sample docs
-    doc_py = repo.create_document(
+    doc_py = repo.upsert_document(
+        doc_id="doc_py_func",
         title="Python Functions and Scope",
         source="Python Core Docs",
         language="python",
-        file_path="data/knowledge_base/python_core.md",
+        topic="functions",
     )
     vec_py = embedding_svc.embed_text("Functions are defined using the def keyword with local variable scope.")
-    repo.create_chunk(
+    repo.save_chunk(
         document_id=doc_py.id,
         chunk_id="chunk_py_func",
         title="Defining Functions",
@@ -29,18 +30,20 @@ def populated_rag(db_session):
         language="python",
         topic="functions",
         section="Functions",
-        text="Functions are defined using the def keyword with local variable scope and return statements.",
+        content="Functions are defined using the def keyword with local variable scope and return statements.",
+        token_count=16,
         embedding=vec_py,
     )
 
-    doc_js = repo.create_document(
+    doc_js = repo.upsert_document(
+        doc_id="doc_js_loop",
         title="JavaScript Event Loop",
         source="MDN Docs",
         language="javascript",
-        file_path="data/knowledge_base/javascript_core.md",
+        topic="async",
     )
     vec_js = embedding_svc.embed_text("The event loop coordinates asynchronous callbacks and promises.")
-    repo.create_chunk(
+    repo.save_chunk(
         document_id=doc_js.id,
         chunk_id="chunk_js_loop",
         title="Event Loop",
@@ -48,10 +51,12 @@ def populated_rag(db_session):
         language="javascript",
         topic="async",
         section="Concurrency",
-        text="The event loop coordinates asynchronous callbacks, microtasks, and macrotasks in the runtime.",
+        content="The event loop coordinates asynchronous callbacks, microtasks, and macrotasks in the runtime.",
+        token_count=16,
         embedding=vec_js,
     )
 
+    db_session.commit()
     retriever = RAGRetriever(db_session, embedding_service=embedding_svc)
     return retriever
 
@@ -90,4 +95,6 @@ def test_context_budget_control(populated_rag: RAGRetriever):
         similarity_threshold=0.1,
         max_context_chars=120,
     )
-    assert len(res.formatted_context) <= 150  # Allows slight margin for headers
+    total_chunk_chars = sum(len(c.text) for c in res.results)
+    assert total_chunk_chars <= 120
+    assert len(res.results) >= 1
