@@ -83,6 +83,10 @@ def create_app() -> FastAPI:
     # Mount API routers
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
+    # Root-level health check endpoint for standard container orchestrators
+    from backend.api.v1.endpoints.health import health_check
+    app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"])
+
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         """Sanitize unhandled internal exceptions to prevent information leakage in production."""

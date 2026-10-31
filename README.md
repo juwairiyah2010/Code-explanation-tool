@@ -107,3 +107,24 @@ To run tests with coverage:
 ```bash
 pytest --verbose
 ```
+
+---
+
+## 🚢 Reproducible Deployment
+
+Code Lore is fully configured for reproducible, zero-downtime deployment across development, testing, and production environments:
+
+- **Alembic Database Migrations**: Reproducible database initialization without manual schema modifications.
+  ```bash
+  python scripts/init_db.py     # Bootstraps schema & populates knowledge chunks
+  alembic upgrade head          # Applies latest database migrations
+  ```
+- **Docker & Docker Compose**: Multi-stage build with non-root security isolation and health checks.
+  ```bash
+  docker compose up -d --build
+  ```
+- **Health Checks**:
+  - Root: `GET http://localhost:8000/health`
+  - API v1: `GET http://localhost:8000/api/v1/health`
+
+For complete details on environment tiers, structured logging, production Uvicorn flags, and troubleshooting, see [DEPLOYMENT.md](file:///Users/apple/Desktop/Code-explanation-tool-main/DEPLOYMENT.md).

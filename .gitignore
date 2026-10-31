@@ -53,8 +53,11 @@ secrets/
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
 data/*.db
 data/*.sqlite
+data/*.db-wal
+data/*.db-shm
 !data/.gitkeep
 
 # Logs & Runtime State

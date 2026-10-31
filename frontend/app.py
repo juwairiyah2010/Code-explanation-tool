@@ -260,11 +260,11 @@ with st.sidebar:
 
     # Health Indicator
     health = client.check_health()
-    if health and health.get("status") == "healthy":
+    if health and health.get("status") in ("healthy", "degraded"):
         st.markdown('<span class="status-dot green"></span> **Backend Online**', unsafe_allow_html=True)
     else:
         st.markdown('<span class="status-dot red"></span> **Backend Offline**', unsafe_allow_html=True)
-        st.error("FastAPI backend is unreachable on port 8000.")
+        st.error(f"FastAPI backend is unreachable at {client.base_url}.")
 
     st.divider()
     st.markdown("#### 🧭 Workspace View")
@@ -368,7 +368,7 @@ if main_view == "🎓 Learning Workspace":
             if not code_input.strip():
                 st.warning("⚠️ Please provide source code before analyzing.")
             elif not health:
-                st.error("🔴 Backend is offline. Please start FastAPI on port 8000.")
+                st.error(f"🔴 Backend is offline ({client.base_url}).")
             else:
                 with st.status("Analyzing code...", expanded=True) as status_box:
                     st.write("🔍 **Analyzing code** – detecting language and validating input format...")

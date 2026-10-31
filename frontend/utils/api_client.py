@@ -1,11 +1,14 @@
-"""Reusable HTTP client for the FastAPI backend."""
-
+import os
 from typing import Any
 import httpx
 from backend.config import get_settings
 
 settings = get_settings()
-BASE_URL = f"http://{settings.BACKEND_HOST}:{settings.BACKEND_PORT}{settings.API_V1_STR}"
+explicit_url = os.getenv("BACKEND_URL") or os.getenv("API_BASE_URL") or settings.BACKEND_URL
+if explicit_url:
+    BASE_URL = explicit_url.rstrip("/")
+else:
+    BASE_URL = f"http://{settings.BACKEND_HOST}:{settings.BACKEND_PORT}{settings.API_V1_STR}"
 
 
 class APIClient:
