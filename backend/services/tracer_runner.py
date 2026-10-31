@@ -60,9 +60,10 @@ def _filter_locals(raw_locals: dict) -> dict[str, str]:
     return clean
 
 
-def run_trace(code_str: str, input_data: str | None = None) -> dict:
+def run_trace(code_str: str, input_data: str | None = None, limit_system_resources: bool = False) -> dict:
     """Execute code_str under sys.settrace in an isolated interpreter frame."""
-    limit_resources()
+    if limit_system_resources:
+        limit_resources()
     start_time = time.perf_counter()
 
     steps: list[dict] = []
@@ -302,11 +303,13 @@ def run_trace(code_str: str, input_data: str | None = None) -> dict:
 
     # Restrict built-ins to safe operations (prevent arbitrary host file system or os calls)
     allowed_builtins = [
-        "print", "input", "range", "len", "int", "float", "str", "bool",
+        "__build_class__", "print", "input", "range", "len", "int", "float", "str", "bool",
         "list", "dict", "set", "tuple", "sum", "min", "max", "abs",
         "round", "enumerate", "zip", "map", "filter", "isinstance",
         "issubclass", "type", "ValueError", "TypeError", "IndexError",
-        "KeyError", "ZeroDivisionError", "Exception", "sorted", "reversed",
+        "KeyError", "ZeroDivisionError", "Exception", "BaseException",
+        "RuntimeError", "AssertionError", "AttributeError", "StopIteration",
+        "sorted", "reversed", "any", "all", "pow", "divmod", "chr", "ord", "repr", "hash", "slice",
     ]
     safe_builtins = {k: getattr(builtins, k) for k in allowed_builtins if hasattr(builtins, k)}
 
@@ -389,7 +392,7 @@ if __name__ == "__main__":
         with open(args.input_file, "r", encoding="utf-8") as f:
             input_text = f.read()
 
-    trace_result = run_trace(code_input, input_text)
+    trace_result = run_trace(code_input, input_text, limit_system_resources=True)
 
     with open(args.out_file, "w", encoding="utf-8") as f:
         json.dump(trace_result, f)
