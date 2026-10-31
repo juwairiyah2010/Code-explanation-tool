@@ -54,12 +54,57 @@ def generate_mermaid_from_trace(steps: list[TraceStep], max_diagram_steps: int =
     return "\n".join(lines)
 
 
+from collections import OrderedDict
+import hashlib
+import threading
+
+class TraceCache:
+    """Thread-safe LRU cache for deterministic Python execution traces."""
+
+    def __init__(self, maxsize: int = 512):
+        self.maxsize = maxsize
+        self._cache: OrderedDict[str, TraceResponse] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def make_key(self, code: str, input_data: str | None, generate_flowchart: bool) -> str:
+        content = f"{generate_flowchart}::{input_data or ''}::{code}"
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+    def get(self, code: str, input_data: str | None, generate_flowchart: bool) -> TraceResponse | None:
+        key = self.make_key(code, input_data, generate_flowchart)
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+                return self._cache[key]
+        return None
+
+    def put(self, code: str, input_data: str | None, generate_flowchart: bool, res: TraceResponse) -> None:
+        key = self.make_key(code, input_data, generate_flowchart)
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+            else:
+                if len(self._cache) >= self.maxsize:
+                    self._cache.popitem(last=False)
+                self._cache[key] = res
+
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+    @property
+    def size(self) -> int:
+        with self._lock:
+            return len(self._cache)
+
+
 class TracerService:
     """Orchestrates code tracing in an isolated subprocess with resource limits."""
 
     def __init__(self, timeout_seconds: float = 3.0):
         self.runner_script = os.path.join(os.path.dirname(__file__), "tracer_runner.py")
         self.timeout_seconds = timeout_seconds
+        self.cache = TraceCache()
 
     async def trace_code(self, request: TraceRequest) -> TraceResponse:
         """Trace Python execution step-by-step and produce structured execution result."""
@@ -69,6 +114,11 @@ class TracerService:
                 language=request.language,
                 error=f"Tracing is currently only supported for Python (requested: {request.language})",
             )
+
+        if getattr(request, "use_cache", True):
+            cached = self.cache.get(request.code, request.input_data, request.generate_flowchart)
+            if cached is not None:
+                return cached
 
         with tempfile.TemporaryDirectory() as temp_dir:
             code_file = os.path.join(temp_dir, "code.py")
@@ -133,7 +183,7 @@ class TracerService:
                 if request.generate_flowchart:
                     flowchart = generate_mermaid_from_trace(steps)
 
-                return TraceResponse(
+                response = TraceResponse(
                     success=result_json.get("success", False),
                     language="python",
                     steps=steps,
@@ -143,6 +193,9 @@ class TracerService:
                     execution_time=result_json.get("execution_time", 0.0),
                     flowchart=flowchart,
                 )
+                if response.success and getattr(request, "use_cache", True):
+                    self.cache.put(request.code, request.input_data, request.generate_flowchart, response)
+                return response
 
             except Exception as e:
                 logger.error(f"TracerService execution error: {e}")

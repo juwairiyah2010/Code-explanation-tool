@@ -235,6 +235,8 @@ class KnowledgeIngestionPipeline:
             )
 
         self.db.commit()
+        from backend.services.rag.retriever import clear_retriever_cache
+        clear_retriever_cache()
         duration = round(time.time() - start_time, 3)
         logger.info(f"RAG ingestion complete: {len(parsed_docs)} docs, {len(total_chunks)} chunks in {duration}s.")
 

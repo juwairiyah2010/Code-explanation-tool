@@ -26,6 +26,45 @@ from backend.services.llm.base import BaseLLMService
 from backend.services.tracer_service import TraceService
 
 
+from collections import OrderedDict
+import hashlib
+import threading
+
+class LearningMaterialCache:
+    """Thread-safe LRU cache for synthesized learning materials."""
+
+    def __init__(self, maxsize: int = 512):
+        self.maxsize = maxsize
+        self._cache: OrderedDict[str, LearningMaterialResponse] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def make_key(self, code: str, language: str, locale: str) -> str:
+        content = f"{language}::{locale}::{code}"
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+    def get(self, code: str, language: str, locale: str) -> LearningMaterialResponse | None:
+        key = self.make_key(code, language, locale)
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+                return self._cache[key]
+        return None
+
+    def put(self, code: str, language: str, locale: str, result: LearningMaterialResponse) -> None:
+        key = self.make_key(code, language, locale)
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+            else:
+                if len(self._cache) >= self.maxsize:
+                    self._cache.popitem(last=False)
+                self._cache[key] = result
+
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+
 class LearningService:
     """Orchestrates deterministic code analysis into interactive learning workflows."""
 
@@ -40,6 +79,7 @@ class LearningService:
         self.analyzer = analysis_service or AnalysisService()
         self.tracer = trace_service or TraceService()
         self.detector = language_detector or LanguageDetector()
+        self.cache = LearningMaterialCache()
 
     async def generate_learning_material(
         self,
@@ -47,8 +87,16 @@ class LearningService:
         language: str = "auto",
         explanation_context: str | None = None,
         locale: str = "en",
+        ast_result: CodeAnalysisResponse | None = None,
+        trace_result: TraceResponse | None = None,
+        use_cache: bool = True,
     ) -> LearningMaterialResponse:
         """Generate complete 8-component learning material grounded in AST analysis and execution trace."""
+        if use_cache:
+            cached = self.cache.get(code, language, locale)
+            if cached is not None:
+                return cached
+
         # 1. Resolve language
         if not language or language == "auto":
             det = self.detector.detect(code)
@@ -56,15 +104,16 @@ class LearningService:
         else:
             resolved_lang = language.lower()
 
-        # 2. Deterministic AST Analysis
-        ast_result = self.analyzer.analyze(code, language=resolved_lang)
+        # 2. Deterministic AST Analysis (reused if provided, else cached)
+        if ast_result is None:
+            ast_result = self.analyzer.analyze(code, language=resolved_lang)
 
-        # 3. Execution Trace when applicable
-        trace_result: TraceResponse | None = None
-        try:
-            trace_result = await self.tracer.trace_if_applicable(code, language=resolved_lang)
-        except Exception as e:
-            logger.warning(f"Trace skipped during learning material generation: {e}")
+        # 3. Execution Trace when applicable (reused if provided, else cached)
+        if trace_result is None and resolved_lang == "python":
+            try:
+                trace_result = await self.tracer.trace_if_applicable(code, language=resolved_lang)
+            except Exception as e:
+                logger.warning(f"Trace skipped during learning material generation: {e}")
 
         # 4. Attempt LLM generation if available and not MockLLM
         material: LearningMaterialResponse | None = None
@@ -92,6 +141,8 @@ class LearningService:
 
         # 6. Enforce Grounding and Line Reference Integrity
         self.validate_and_sanitize_material(material, code)
+        if use_cache:
+            self.cache.put(code, language, locale, material)
         return material
 
     def validate_and_sanitize_material(

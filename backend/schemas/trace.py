@@ -9,6 +9,7 @@ class TraceRequest(BaseModel):
     language: str = Field("python", max_length=32)
     input_data: str | None = Field(None, max_length=10000, description="Optional stdin data")
     generate_flowchart: bool = False
+    use_cache: bool = True
 
 
 class TraceStep(BaseModel):

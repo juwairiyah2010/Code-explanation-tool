@@ -94,13 +94,14 @@ async def submit_learning_answers(
     summary="Get Learner Progress Model",
     description="Returns current deterministic concept mastery percentages (e.g., Loops: 70%, Functions: 40%).",
 )
-def get_learner_progress(
+async def get_learner_progress(
     user_id: int | None = None,
     db: Session = Depends(get_db),
 ) -> list[ConceptMasteryItem]:
     try:
         repo = LearningRepository(db)
-        return repo.get_learner_progress(user_id=user_id)
+        import asyncio
+        return await asyncio.to_thread(repo.get_learner_progress, user_id=user_id)
     except Exception as e:
         logger.error(f"Error loading learner progress: {e}")
         raise HTTPException(

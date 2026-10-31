@@ -59,8 +59,47 @@ class BM25Scorer:
         return scores
 
 
+from collections import OrderedDict
+from dataclasses import dataclass
+import hashlib
+import threading
+
+@dataclass
+class CachedCandidate:
+    chunk_id: str
+    source: str
+    title: str
+    section: str
+    content: str
+    language: str
+    topic: str
+
+@dataclass
+class CachedCorpus:
+    candidates: list[CachedCandidate]
+    matrix: np.ndarray  # Shape: (N, D), normalized float32
+    bm25_scorer: BM25Scorer
+    total_chunks_in_db: int = 0
+
+
+_corpus_cache: dict[str, CachedCorpus] = {}
+_corpus_lock = threading.Lock()
+
+_query_cache: OrderedDict[str, RAGRetrievalResponse] = OrderedDict()
+_query_lock = threading.Lock()
+_MAX_QUERY_CACHE = 512
+
+
+def clear_retriever_cache() -> None:
+    """Clear all in-memory RAG corpus and query caches."""
+    with _corpus_lock:
+        _corpus_cache.clear()
+    with _query_lock:
+        _query_cache.clear()
+
+
 class RAGRetriever:
-    """Hybrid semantic vector and keyword search over SQLite knowledge chunks."""
+    """Hybrid semantic vector and keyword search over SQLite knowledge chunks with in-memory caching."""
 
     def __init__(
         self,
@@ -73,6 +112,82 @@ class RAGRetriever:
         self.embedding_service = embedding_service or get_embedding_service()
         self.default_threshold = default_threshold
 
+    def _get_db_key(self) -> str:
+        try:
+            bind = self.db.get_bind()
+            url_str = str(bind.url) if bind is not None else ""
+            if ":memory:" in url_str:
+                return f"{url_str}_{id(bind)}"
+            return url_str or str(id(self.db))
+        except Exception:
+            return str(id(self.db))
+
+    def _get_or_build_corpus(self, language: str) -> CachedCorpus | None:
+        db_key = self._get_db_key()
+        cache_key = f"{db_key}::{(language or 'all').lower().strip()}"
+        with _corpus_lock:
+            if cache_key in _corpus_cache:
+                cached = _corpus_cache[cache_key]
+                try:
+                    curr_total = self.repo.get_stats()["chunks"]
+                    if curr_total == cached.total_chunks_in_db:
+                        return cached
+                except Exception:
+                    return cached
+
+        # Fetch candidate chunks from SQLite (filtered by language/general)
+        candidates = self.repo.get_candidate_chunks(language=language)
+        if not candidates:
+            # Fallback to all chunks if language-specific query returned 0 candidates
+            candidates = self.repo.get_candidate_chunks(language=None)
+
+        if not candidates:
+            return None
+
+        chunk_vectors = []
+        valid_candidates: list[CachedCandidate] = []
+        for c in candidates:
+            try:
+                vec = np.array(json.loads(c.embedding), dtype=np.float32)
+                norm = np.linalg.norm(vec)
+                if norm > 0:
+                    vec = vec / norm
+                chunk_vectors.append(vec)
+                valid_candidates.append(
+                    CachedCandidate(
+                        chunk_id=c.chunk_id,
+                        source=c.source,
+                        title=c.title,
+                        section=getattr(c, "section", "") or c.title,
+                        content=c.content,
+                        language=c.language,
+                        topic=c.topic,
+                    )
+                )
+            except Exception as parse_err:
+                logger.warning(f"Error parsing embedding for chunk {c.chunk_id}: {parse_err}")
+
+        if not valid_candidates:
+            return None
+
+        matrix = np.vstack(chunk_vectors)
+        corpus_texts = [f"{c.title} {c.section or ''} {c.content}" for c in valid_candidates]
+        bm25_scorer = BM25Scorer(corpus_texts)
+        try:
+            total_chunks = self.repo.get_stats()["chunks"]
+        except Exception:
+            total_chunks = len(valid_candidates)
+
+        cached_corpus = CachedCorpus(
+            candidates=valid_candidates,
+            matrix=matrix,
+            bm25_scorer=bm25_scorer,
+            total_chunks_in_db=total_chunks,
+        )
+        with _corpus_lock:
+            _corpus_cache[cache_key] = cached_corpus
+        return cached_corpus
+
     def retrieve(
         self,
         query: str,
@@ -83,8 +198,9 @@ class RAGRetriever:
         hybrid: bool = True,
         alpha: float = 0.65,
         max_context_chars: int = 3500,
+        use_cache: bool = True,
     ) -> RAGRetrievalResponse:
-        """Search knowledge base for chunks most relevant to query using hybrid scoring."""
+        """Search knowledge base for chunks most relevant to query using hybrid scoring and index caching."""
         threshold = (
             min_relevance_threshold
             if min_relevance_threshold is not None
@@ -101,13 +217,17 @@ class RAGRetriever:
                 formatted_context="",
             )
 
-        # 1. Fetch candidate chunks from SQLite (filtered by language/general)
-        candidates = self.repo.get_candidate_chunks(language=language)
-        if not candidates:
-            # Fallback to all chunks if language-specific query returned 0 candidates
-            candidates = self.repo.get_candidate_chunks(language=None)
+        # Check query-level cache
+        db_key = self._get_db_key()
+        query_key = f"{db_key}::{clean_query}::{language}::{top_k}::{threshold}::{hybrid}::{alpha}::{max_context_chars}"
+        if use_cache:
+            with _query_lock:
+                if query_key in _query_cache:
+                    _query_cache.move_to_end(query_key)
+                    return _query_cache[query_key]
 
-        if not candidates:
+        corpus = self._get_or_build_corpus(language=language)
+        if not corpus:
             logger.warning("RAG retriever: No candidate chunks in database.")
             return RAGRetrievalResponse(
                 query=query,
@@ -127,38 +247,13 @@ class RAGRetriever:
                 query_norm = 1.0
             query_embedding = query_embedding / query_norm
 
-            chunk_vectors = []
-            valid_candidates: list[KnowledgeChunk] = []
-            for c in candidates:
-                try:
-                    vec = np.array(json.loads(c.embedding), dtype=np.float32)
-                    norm = np.linalg.norm(vec)
-                    if norm > 0:
-                        vec = vec / norm
-                    chunk_vectors.append(vec)
-                    valid_candidates.append(c)
-                except Exception as parse_err:
-                    logger.warning(f"Error parsing embedding for chunk {c.chunk_id}: {parse_err}")
-
-            if not valid_candidates:
-                return RAGRetrievalResponse(
-                    query=query,
-                    results=[],
-                    insufficient_context=True,
-                    total_candidates=0,
-                    formatted_context="",
-                )
-
-            matrix = np.vstack(chunk_vectors)  # Shape: (N, D)
-            semantic_scores = np.dot(matrix, query_embedding)
+            semantic_scores = np.dot(corpus.matrix, query_embedding)
 
             # 3. Keyword Sparse Retrieval (BM25)
             if hybrid:
-                corpus_texts = [f"{c.title} {c.section or ''} {c.content}" for c in valid_candidates]
-                bm25_scorer = BM25Scorer(corpus_texts)
-                keyword_scores = bm25_scorer.score(clean_query)
+                keyword_scores = corpus.bm25_scorer.score(clean_query)
             else:
-                keyword_scores = [0.0] * len(valid_candidates)
+                keyword_scores = [0.0] * len(corpus.candidates)
 
             # 4. Hybrid Ranking
             hybrid_scores = []
@@ -177,7 +272,7 @@ class RAGRetriever:
                 score = float(hybrid_scores[idx])
                 if score < threshold:
                     break
-                cand = valid_candidates[idx]
+                cand = corpus.candidates[idx]
                 raw_results.append({
                     "chunk_id": cand.chunk_id,
                     "score": round(score, 4),
@@ -220,13 +315,19 @@ class RAGRetriever:
             formatted_context = self.build_llm_prompt_context(budgeted_citations)
 
             insufficient = len(budgeted_citations) == 0
-            return RAGRetrievalResponse(
+            resp = RAGRetrievalResponse(
                 query=query,
                 results=budgeted_citations,
                 insufficient_context=insufficient,
-                total_candidates=len(valid_candidates),
+                total_candidates=len(corpus.candidates),
                 formatted_context=formatted_context,
             )
+            if use_cache:
+                with _query_lock:
+                    if len(_query_cache) >= _MAX_QUERY_CACHE:
+                        _query_cache.popitem(last=False)
+                    _query_cache[query_key] = resp
+            return resp
 
         except Exception as e:
             logger.error(f"Error during RAG hybrid retrieval: {e}")
@@ -234,7 +335,7 @@ class RAGRetriever:
                 query=query,
                 results=[],
                 insufficient_context=True,
-                total_candidates=len(candidates),
+                total_candidates=len(corpus.candidates) if ("corpus" in locals() and corpus) else 0,
                 formatted_context="",
             )
 

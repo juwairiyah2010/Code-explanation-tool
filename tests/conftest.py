@@ -24,6 +24,8 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 @pytest.fixture(scope="function")
 def db_session() -> Generator[Session, None, None]:
     """Create fresh tables for every test and drop them when done."""
+    from backend.services.rag.retriever import clear_retriever_cache
+    clear_retriever_cache()
     Base.metadata.create_all(bind=test_engine)
     session = TestingSessionLocal()
     try:
@@ -31,6 +33,7 @@ def db_session() -> Generator[Session, None, None]:
     finally:
         session.close()
         Base.metadata.drop_all(bind=test_engine)
+        clear_retriever_cache()
 
 
 @pytest.fixture(scope="function")

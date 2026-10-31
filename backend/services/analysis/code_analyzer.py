@@ -32,6 +32,50 @@ except Exception:
     PYFLAKES_AVAILABLE = False
 
 
+from collections import OrderedDict
+import hashlib
+import threading
+
+class AnalysisCache:
+    """Thread-safe LRU cache for deterministic AST analysis results."""
+
+    def __init__(self, maxsize: int = 1024):
+        self.maxsize = maxsize
+        self._cache: OrderedDict[str, AnalysisResult] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def make_key(self, code: str, language: str, filename: str | None) -> str:
+        content = f"{language}::{filename or ''}::{code}"
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+    def get(self, code: str, language: str, filename: str | None) -> AnalysisResult | None:
+        key = self.make_key(code, language, filename)
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+                return self._cache[key]
+        return None
+
+    def put(self, code: str, language: str, filename: str | None, result: AnalysisResult) -> None:
+        key = self.make_key(code, language, filename)
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+            else:
+                if len(self._cache) >= self.maxsize:
+                    self._cache.popitem(last=False)
+                self._cache[key] = result
+
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+    @property
+    def size(self) -> int:
+        with self._lock:
+            return len(self._cache)
+
+
 class CodeAnalyzer:
     """Core static code analysis service providing beginner-friendly normalized findings."""
 
@@ -39,6 +83,7 @@ class CodeAnalyzer:
         self.static_analyzer = static_analyzer or StaticAnalyzer()
         self._python_parser = None
         self._js_parser = None
+        self.cache = AnalysisCache()
 
     @property
     def python_parser(self):
@@ -59,14 +104,24 @@ class CodeAnalyzer:
         code: str,
         language: str = "auto",
         filename: str | None = None,
+        use_cache: bool = True,
     ) -> AnalysisResult:
         """Run deterministic static analysis on code and return normalized AnalysisResult."""
+        if use_cache:
+            cached = self.cache.get(code, language, filename)
+            if cached is not None:
+                return cached
+
         resolved_language, detection_method = self._resolve_language(code, language, filename)
 
         if resolved_language == "javascript":
-            return self._analyze_javascript(code, detection_method)
+            result = self._analyze_javascript(code, detection_method)
         else:
-            return self._analyze_python(code, detection_method)
+            result = self._analyze_python(code, detection_method)
+
+        if use_cache:
+            self.cache.put(code, language, filename, result)
+        return result
 
     def _resolve_language(
         self,

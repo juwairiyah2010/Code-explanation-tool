@@ -1,0 +1,170 @@
+{
+  "ast_analysis": {
+    "py_simple": {
+      "cold_ms": 18.41,
+      "mean_ms": 0.01,
+      "min_ms": 0.01,
+      "p95_ms": 0.01,
+      "max_ms": 0.02
+    },
+    "py_complex": {
+      "cold_ms": 12.93,
+      "mean_ms": 0.01,
+      "min_ms": 0.01,
+      "p95_ms": 0.01,
+      "max_ms": 0.01
+    },
+    "js_simple": {
+      "cold_ms": 7.57,
+      "mean_ms": 0.01,
+      "min_ms": 0.01,
+      "p95_ms": 0.01,
+      "max_ms": 0.02
+    },
+    "js_complex": {
+      "cold_ms": 9.89,
+      "mean_ms": 0.01,
+      "min_ms": 0.01,
+      "p95_ms": 0.01,
+      "max_ms": 0.01
+    },
+    "peak_memory_kb": 357.34
+  },
+  "execution_tracing": {
+    "simple_trace": {
+      "cold_ms": 77.34,
+      "mean_ms": 0.03,
+      "min_ms": 0.02,
+      "p95_ms": 0.03,
+      "max_ms": 0.07
+    },
+    "recursion_trace": {
+      "cold_ms": 81.98,
+      "mean_ms": 0.03,
+      "min_ms": 0.02,
+      "p95_ms": 0.02,
+      "max_ms": 0.05
+    },
+    "peak_memory_kb": 301.46
+  },
+  "embedding_generation": {
+    "single_text": {
+      "cold_ms": 2249.84,
+      "mean_ms": 0.01,
+      "min_ms": 0.01,
+      "p95_ms": 0.01,
+      "max_ms": 0.01
+    },
+    "batch_10_texts": {
+      "cold_ms": 24.14,
+      "mean_ms": 0.07,
+      "min_ms": 0.06,
+      "p95_ms": 0.07,
+      "max_ms": 0.11
+    },
+    "repeated_5x_same_text": {
+      "cold_ms": 0.04,
+      "mean_ms": 0.04,
+      "min_ms": 0.03,
+      "p95_ms": 0.04,
+      "max_ms": 0.05
+    },
+    "peak_memory_kb": 15617.86
+  },
+  "retrieval": {
+    "hybrid_search": {
+      "cold_ms": 135.4,
+      "mean_ms": 0.05,
+      "min_ms": 0.03,
+      "p95_ms": 0.07,
+      "max_ms": 0.1
+    },
+    "db_queries_for_11_runs": 3,
+    "avg_queries_per_retrieval": 0.27,
+    "total_sql_time_ms": 2.25,
+    "peak_memory_kb": 1132.45
+  },
+  "explanation_pipeline": {
+    "end_to_end": {
+      "cold_ms": 160.27,
+      "mean_ms": 3.82,
+      "min_ms": 3.74,
+      "p95_ms": 3.79,
+      "max_ms": 4.05
+    },
+    "db_queries_for_6_runs": 2,
+    "avg_queries_per_run": 0.33,
+    "total_sql_time_ms": 1.25,
+    "peak_memory_kb": 346.3
+  },
+  "database_operations": {
+    "get_candidate_chunks_10x": {
+      "queries": 10,
+      "total_duration_ms": 2.72,
+      "avg_duration_ms": 0.272
+    },
+    "get_learner_progress_10x": {
+      "queries": 10,
+      "total_duration_ms": 2.26,
+      "avg_duration_ms": 0.226
+    },
+    "evaluate_and_record_attempt_5x": {
+      "queries": 30,
+      "total_duration_ms": 7.87,
+      "avg_duration_ms": 1.574
+    }
+  },
+  "api_latencies": {
+    "post_ast_analyze": {
+      "cold_ms": 32.18,
+      "mean_ms": 9.74,
+      "min_ms": 9.15,
+      "p95_ms": 10.17,
+      "max_ms": 10.36
+    },
+    "post_trace": {
+      "cold_ms": 99.76,
+      "mean_ms": 97.28,
+      "min_ms": 96.77,
+      "p95_ms": 97.68,
+      "max_ms": 97.74
+    },
+    "post_rag_retrieve": {
+      "cold_ms": 36.09,
+      "mean_ms": 7.23,
+      "min_ms": 6.78,
+      "p95_ms": 7.74,
+      "max_ms": 7.98
+    },
+    "post_learning_material": {
+      "cold_ms": 105.87,
+      "mean_ms": 104.75,
+      "min_ms": 103.05,
+      "p95_ms": 105.53,
+      "max_ms": 106.25
+    },
+    "post_learning_evaluate": {
+      "cold_ms": 9.06,
+      "mean_ms": 4.52,
+      "min_ms": 4.36,
+      "p95_ms": 4.66,
+      "max_ms": 4.84
+    },
+    "post_explain": {
+      "cold_ms": 131.46,
+      "mean_ms": 113.07,
+      "min_ms": 112.46,
+      "p95_ms": 113.32,
+      "max_ms": 113.56
+    }
+  },
+  "memory_consumption": {
+    "process_max_rss_mb": 480.78,
+    "platform": "darwin",
+    "ast_peak_kb": 357.34,
+    "trace_peak_kb": 301.46,
+    "embed_peak_kb": 15617.86,
+    "retrieval_peak_kb": 1132.45,
+    "pipeline_peak_kb": 346.3
+  }
+}

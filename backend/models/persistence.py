@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float, Index
 from sqlalchemy.orm import relationship
 from backend.core.database import Base
 from datetime import datetime, timezone
@@ -18,6 +18,9 @@ class User(Base):
 
 class Submission(Base):
     __tablename__ = "submissions"
+    __table_args__ = (
+        Index("ix_submissions_user_lang", "user_id", "language"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -96,6 +99,9 @@ class KnowledgeDocument(Base):
 
 class KnowledgeChunk(Base):
     __tablename__ = "knowledge_chunks"
+    __table_args__ = (
+        Index("ix_knowledge_chunks_lang_topic", "language", "topic"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     document_id = Column(Integer, ForeignKey("knowledge_documents.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -120,6 +126,9 @@ class KnowledgeChunk(Base):
 
 class LearnerProgress(Base):
     __tablename__ = "learner_progress"
+    __table_args__ = (
+        Index("ix_learner_progress_user_concept", "user_id", "concept"),
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)

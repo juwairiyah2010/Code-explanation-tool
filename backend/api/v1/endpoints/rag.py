@@ -13,6 +13,8 @@ from backend.services.rag.rag_service import RAGService
 router = APIRouter()
 
 
+import asyncio
+
 @router.post(
     "/retrieve",
     response_model=RAGRetrievalResponse,
@@ -20,12 +22,12 @@ router = APIRouter()
     summary="Semantic Knowledge Search",
     description="Retrieve most relevant knowledge chunks and citations for a given query.",
 )
-def retrieve_knowledge(
+async def retrieve_knowledge(
     request: RAGRetrievalRequest,
     rag_service: RAGService = Depends(get_rag_service),
 ) -> RAGRetrievalResponse:
     """Perform vector similarity search over documentation chunks."""
-    return rag_service.retrieve(request)
+    return await asyncio.to_thread(rag_service.retrieve, request)
 
 
 @router.get(
@@ -34,9 +36,9 @@ def retrieve_knowledge(
     summary="Knowledge Base Statistics",
     description="Get count of ingested documents and vector chunks.",
 )
-def get_rag_stats(rag_service: RAGService = Depends(get_rag_service)) -> dict[str, int]:
+async def get_rag_stats(rag_service: RAGService = Depends(get_rag_service)) -> dict[str, int]:
     """Retrieve document count and chunk count from knowledge base."""
-    return rag_service.get_stats()
+    return await asyncio.to_thread(rag_service.get_stats)
 
 
 @router.post(

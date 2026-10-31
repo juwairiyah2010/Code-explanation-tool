@@ -1,5 +1,6 @@
 """AST and static code analysis endpoint."""
 
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from backend.api.deps import get_code_analyzer
 from backend.core.security import sanitize_internal_error
@@ -10,13 +11,14 @@ router = APIRouter()
 
 
 @router.post("/ast/analyze", response_model=CodeAnalysisResponse, tags=["AST Analysis"])
-def analyze_ast(
+async def analyze_ast(
     request: CodeAnalysisRequest,
     analyzer: CodeAnalyzer = Depends(get_code_analyzer),
 ) -> CodeAnalysisResponse:
     """Analyze source code syntax, extract constructs, detect language, check static rules, and calculate metrics."""
     try:
-        return analyzer.analyze(
+        return await asyncio.to_thread(
+            analyzer.analyze,
             code=request.code,
             language=request.language,
             filename=request.filename,

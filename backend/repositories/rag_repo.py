@@ -120,3 +120,8 @@ class RAGRepository:
         """Clear all knowledge documents and cascaded chunks."""
         self.db.execute(delete(KnowledgeDocument))
         self.db.commit()
+        try:
+            from backend.services.rag.retriever import clear_retriever_cache
+            clear_retriever_cache()
+        except Exception:
+            pass
