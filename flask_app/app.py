@@ -166,17 +166,21 @@ def quiz():
     language = session.get('current_language', 'python')
     
     if not code:
-        flash('No code loaded to generate quiz.', 'info')
+        flash('No code loaded to generate learning workflow.', 'info')
         return redirect(url_for('app_view'))
 
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'generate':
             try:
-                quiz_result = client.generate_quiz(code, language)
+                quiz_result = client.generate_quiz(code, language, workflow="learning")
                 session['quiz_result'] = quiz_result
+                session['quiz_answers'] = {}
+                session['quiz_submitted'] = False
+                session['eval_result'] = None
+                session['attempts'] = session.get('attempts', 0) + 1
             except Exception as e:
-                flash(f'Quiz generation failed: {str(e)}', 'danger')
+                flash(f'Learning workflow generation failed: {str(e)}', 'danger')
         elif action == 'submit':
             answers = {}
             for key, val in request.form.items():
@@ -185,11 +189,34 @@ def quiz():
             session['quiz_answers'] = answers
             session['quiz_submitted'] = True
 
+            quiz_result = session.get('quiz_result')
+            try:
+                eval_res = client.submit_learning_answers(
+                    code=code,
+                    language=language,
+                    answers=answers,
+                    questions_payload=quiz_result.get("questions") if quiz_result else None,
+                )
+                session['eval_result'] = eval_res
+            except Exception as e:
+                flash(f'Evaluation warning: {str(e)}', 'warning')
+
     quiz_result = session.get('quiz_result')
     answers = session.get('quiz_answers', {})
     submitted = session.get('quiz_submitted', False)
+    eval_result = session.get('eval_result')
+    progress = client.get_learner_progress()
     
-    return render_template('quiz.html', quiz_result=quiz_result, answers=answers, submitted=submitted, code=code)
+    return render_template(
+        'quiz.html',
+        quiz_result=quiz_result,
+        answers=answers,
+        submitted=submitted,
+        eval_result=eval_result,
+        progress=progress,
+        code=code,
+        attempts=session.get('attempts', 1),
+    )
 
 @app.route('/history')
 @login_required

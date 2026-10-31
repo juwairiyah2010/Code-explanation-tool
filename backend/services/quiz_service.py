@@ -39,7 +39,18 @@ class QuizService:
 
     async def generate_quiz(self, request: QuizRequest) -> QuizResponse:
         """Generate multiple choice questions based on code context and validate results."""
-        logger.info(f"Generating quiz for language={request.language}, locale={request.locale}")
+        logger.info(f"Generating quiz for language={request.language}, locale={request.locale}, workflow={request.workflow}")
+        if request.workflow == "learning":
+            from backend.services.learning_service import LearningService
+            learning_svc = LearningService(llm_service=self.llm)
+            material = await learning_svc.generate_learning_material(
+                code=request.code,
+                language=request.language,
+                explanation_context=request.explanation_context,
+                locale=request.locale,
+            )
+            return learning_svc.to_quiz_response(material)
+
         response = await self.llm.generate_quiz(
             code=request.code,
             language=request.language,
@@ -47,4 +58,19 @@ class QuizService:
             locale=request.locale,
         )
         self.validate_quiz_response(response, request.code)
+
+        # Supplement learning metadata if absent
+        if not response.key_concepts:
+            from backend.services.learning_service import LearningService
+            learning_svc = LearningService(llm_service=self.llm)
+            mat = learning_svc.synthesize_deterministic_material(
+                code=request.code, language=request.language, ast_result=None, locale=request.locale
+            )
+            response.key_concepts = [kc.model_dump() for kc in mat.key_concepts]
+            response.beginner_explanation = mat.beginner_explanation
+            response.execution_walkthrough = mat.execution_walkthrough
+            response.final_takeaway = mat.final_takeaway
+            if not response.common_mistakes:
+                response.common_mistakes = mat.common_mistakes
+
         return response

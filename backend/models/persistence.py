@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from backend.core.database import Base
 from datetime import datetime, timezone
@@ -116,4 +116,35 @@ class KnowledgeChunk(Base):
     def text(self) -> str:
         """Alias for content to provide normalized chunk interface."""
         return self.content
+
+
+class LearnerProgress(Base):
+    __tablename__ = "learner_progress"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    concept = Column(String(100), nullable=False, index=True)
+    total_attempted = Column(Integer, default=0, nullable=False)
+    total_correct = Column(Integer, default=0, nullable=False)
+    mastery = Column(Float, default=0.0, nullable=False)  # percentage 0.0 - 100.0
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
+
+class LearningSession(Base):
+    __tablename__ = "learning_sessions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    submission_id = Column(Integer, ForeignKey("submissions.id", ondelete="SET NULL"), nullable=True, index=True)
+    language = Column(String(50), nullable=False)
+    total_questions = Column(Integer, default=5, nullable=False)
+    correct_count = Column(Integer, default=0, nullable=False)
+    score = Column(Float, default=0.0, nullable=False)  # percentage 0.0 - 100.0
+    attempts = Column(Integer, default=1, nullable=False)
+    completion_status = Column(String(50), default="completed", nullable=False)
+    incorrect_concepts = Column(Text, default="[]", nullable=False)  # JSON-encoded list of concepts
+    questions_data = Column(Text, nullable=False)  # JSON-encoded questions
+    answers_data = Column(Text, default="{}", nullable=False)  # JSON-encoded answers
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
 

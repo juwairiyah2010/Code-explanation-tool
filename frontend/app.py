@@ -618,7 +618,8 @@ elif page == "🔬 Trace & Flowchart":
 # PAGE 5 – QUIZ
 # ════════════════════════════════════════════════════════════════════
 elif page == "🧩 Quiz":
-    st.markdown("## 🧩 Code Quiz")
+    st.markdown("## 🎓 Interactive Code Learning")
+    st.caption("Deterministic analysis-grounded comprehension, debugging, and prediction workflow.")
 
     code = st.session_state.get("current_code", "")
     quiz_result = st.session_state.get("quiz_result")
@@ -626,13 +627,13 @@ elif page == "🧩 Quiz":
     if not code.strip():
         st.info("No code loaded. Go to **📝 Code Input** first and analyze some code.")
     else:
-        st.markdown("##### Code being quizzed:")
+        st.markdown("##### Code being analyzed:")
         lang_q = st.session_state.get("current_language", "python")
         st.code(code, language=lang_q if lang_q != "auto" else "python", line_numbers=True)
 
         col_gen, col_lang = st.columns([2, 1])
         with col_gen:
-            gen_quiz_btn = st.button("🎲 Generate Quiz", type="primary", use_container_width=True)
+            gen_quiz_btn = st.button("⚡ Generate Learning Workflow", type="primary", use_container_width=True)
         with col_lang:
             quiz_locale = st.selectbox("Language", ["en", "hi"], format_func=lambda x: "English" if x == "en" else "हिन्दी")
 
@@ -640,29 +641,75 @@ elif page == "🧩 Quiz":
             if not health:
                 st.error("🔴 Backend offline.")
             else:
-                with st.spinner("🧩 Generating quiz questions…"):
+                with st.spinner("🧩 Generating grounded learning material & questions…"):
                     try:
-                        quiz_result = client.generate_quiz(code, lang_q, locale=quiz_locale)
+                        quiz_result = client.generate_quiz(code, lang_q, locale=quiz_locale, workflow="learning")
                         st.session_state["quiz_result"] = quiz_result
                         st.session_state["quiz_answers"] = {}
                         st.session_state["quiz_submitted"] = False
+                        st.session_state["attempts"] = st.session_state.get("attempts", 0) + 1
                     except Exception as e:
-                        st.error(f"❌ Quiz generation failed: {str(e)}")
+                        st.error(f"❌ Learning workflow generation failed: {str(e)}")
 
         if quiz_result:
+            # ── 1. Beginner Explanation ──────────────────────────────
+            beg_exp = quiz_result.get("beginner_explanation")
+            if beg_exp:
+                st.markdown("### 💡 1. Beginner Explanation")
+                st.markdown(f"> {beg_exp}")
+
+            # ── 2. Key Concepts ──────────────────────────────────────
+            k_concepts = quiz_result.get("key_concepts", [])
+            if k_concepts:
+                st.markdown("### 🏷️ 2. Key Concepts")
+                kc_cols = st.columns(min(len(k_concepts), 3))
+                for i, kc in enumerate(k_concepts):
+                    with kc_cols[i % len(kc_cols)]:
+                        kc_name = kc.get("name") or kc.get("term", "Concept")
+                        kc_desc = kc.get("description") or kc.get("definition", "")
+                        ref_l = kc.get("referenced_lines", [])
+                        st.markdown(f"**{kc_name}**")
+                        st.caption(kc_desc)
+                        if ref_l:
+                            st.caption(f"📍 Lines: `{ref_l}`")
+
+            # ── 3. Execution Walkthrough ─────────────────────────────
+            walkthrough = quiz_result.get("execution_walkthrough", [])
+            if walkthrough:
+                st.markdown("### 👣 3. Execution Walkthrough")
+                for step in walkthrough:
+                    st.markdown(f"- {step}")
+
+            # ── 4. Common Mistakes ───────────────────────────────────
+            mistakes = quiz_result.get("common_mistakes", [])
+            if mistakes:
+                st.markdown("### ⚠️ 4. Common Mistakes")
+                for m in mistakes:
+                    st.warning(f"• {m}")
+
+            st.divider()
+
+            # ── 5, 6, 7. Comprehension, Debugging, and Prediction Questions
             questions = quiz_result.get("questions", [])
             submitted = st.session_state.get("quiz_submitted", False)
 
-            st.divider()
-            st.markdown(f"### 📝 {len(questions)} Questions")
+            st.markdown(f"### 📝 Code Comprehension Questions ({len(questions)} total)")
+            st.caption("Grounded in verified AST constructs and lines of the submitted code.")
 
             for qi, q in enumerate(questions):
-                st.markdown(f"**Q{qi + 1}.** {q['text']}")
-                if q.get("line_reference"):
-                    st.caption(f"📍 Refers to line(s): {q['line_reference']}")
+                q_type = q.get("question_type", "comprehension")
+                type_badge = "🐛 Debugging" if q_type == "debugging" else ("🔮 Predict Output" if q_type == "predict_output" else "🧠 Comprehension")
+                concept_badge = q.get("concept", "General")
+                q_text = q.get("question") or q.get("text", "")
+
+                st.markdown(f"**Q{qi + 1} ({type_badge} | Concept: {concept_badge})**")
+                st.markdown(f"##### {q_text}")
+
+                ref_lines = q.get("referenced_lines") or q.get("line_reference")
+                if ref_lines:
+                    st.caption(f"📍 Referenced line(s): `{ref_lines}`")
 
                 options = q.get("options", [])
-                option_labels = [f"{opt['id'].upper()}) {opt['text']}" for opt in options]
                 option_ids = [opt["id"] for opt in options]
 
                 if not submitted:
@@ -677,9 +724,8 @@ elif page == "🧩 Quiz":
                     )
                     st.session_state["quiz_answers"][q["id"]] = selected
                 else:
-                    # Show results
                     user_answer = st.session_state["quiz_answers"].get(q["id"], "")
-                    correct_id = q.get("correct_option_id", "")
+                    correct_id = q.get("correct_answer") or q.get("correct_option_id", "")
                     for opt in options:
                         if opt["id"] == correct_id:
                             st.markdown(f"✅ **{opt['id'].upper()}) {opt['text']}** ← Correct")
@@ -687,55 +733,66 @@ elif page == "🧩 Quiz":
                             st.markdown(f"❌ ~~{opt['id'].upper()}) {opt['text']}~~ ← Your answer")
                         else:
                             st.markdown(f"⬜ {opt['id'].upper()}) {opt['text']}")
-                    st.info(f"💡 {q.get('explanation', '')}")
+                    st.info(f"💡 **Explanation:** {q.get('explanation', '')}")
 
                 st.markdown("---")
 
             if not submitted:
-                if st.button("📩 Submit Answers", type="primary", use_container_width=True):
+                if st.button("📩 Submit Answers for Deterministic Evaluation", type="primary", use_container_width=True):
                     st.session_state["quiz_submitted"] = True
+                    try:
+                        eval_res = client.submit_learning_answers(
+                            code=code,
+                            language=lang_q,
+                            answers=st.session_state["quiz_answers"],
+                            questions_payload=questions,
+                        )
+                        st.session_state["eval_res"] = eval_res
+                    except Exception as e:
+                        logger.warning(f"Submission recording warning: {e}")
                     st.rerun()
             else:
-                # Score calculation
+                # Deterministic scoring
                 score = 0
                 total = len(questions)
                 for q in questions:
-                    if st.session_state["quiz_answers"].get(q["id"]) == q.get("correct_option_id"):
+                    c_id = q.get("correct_answer") or q.get("correct_option_id")
+                    if st.session_state["quiz_answers"].get(q["id"]) == c_id:
                         score += 1
 
                 pct = int((score / total) * 100) if total else 0
-                s1, s2, s3 = st.columns(3)
+                st.markdown("### 📊 Evaluation Results")
+                s1, s2, s3, s4 = st.columns(4)
                 s1.metric("Score", f"{score}/{total}")
-                s2.metric("Percentage", f"{pct}%")
-                s3.metric("Grade", "⭐ Perfect!" if pct == 100 else "👍 Good" if pct >= 66 else "📖 Keep learning")
+                s2.metric("Accuracy", f"{pct}%")
+                s3.metric("Attempts", st.session_state.get("attempts", 1))
+                s4.metric("Status", "Completed")
 
-                if st.button("🔄 Retake Quiz"):
+                # ── Learner Progress Model ───────────────────────────
+                progress = client.get_learner_progress()
+                if progress:
+                    st.markdown("### 📈 Learner Progress Model")
+                    st.caption("Deterministic concept mastery tracking:")
+                    p_cols = st.columns(min(len(progress), 3))
+                    for idx, p in enumerate(progress):
+                        with p_cols[idx % len(p_cols)]:
+                            st.metric(
+                                label=f"Concept: {p['concept']}",
+                                value=f"{p['mastery']}%",
+                                help=f"Correct: {p.get('total_correct', 0)} / {p.get('total_attempted', 0)} attempts",
+                            )
+
+                if st.button("🔄 Retake / Regenerate Session"):
                     st.session_state["quiz_submitted"] = False
                     st.session_state["quiz_answers"] = {}
                     st.rerun()
 
-            # Glossary & Mistakes
-            glossary = quiz_result.get("glossary", [])
-            mistakes = quiz_result.get("common_mistakes", [])
-            improvement = quiz_result.get("improvement")
-
-            if glossary or mistakes or improvement:
+            # ── 8. Final Takeaway ────────────────────────────────────
+            takeaway = quiz_result.get("final_takeaway")
+            if takeaway:
                 st.divider()
-
-            if glossary:
-                st.markdown("### 📖 Glossary")
-                for g in glossary:
-                    st.markdown(f"- **{g['term']}**: {g['definition']}")
-
-            if mistakes:
-                st.markdown("### ⚠️ Common Mistakes")
-                for m in mistakes:
-                    st.markdown(f"- {m}")
-
-            if improvement:
-                st.markdown("### ✨ Improved Code Suggestion")
-                st.code(improvement.get("improved_code", ""), language=lang_q if lang_q != "auto" else "python")
-                st.caption(improvement.get("explanation", ""))
+                st.markdown("### 🎯 8. Final Takeaway")
+                st.success(takeaway)
 
 
 # ════════════════════════════════════════════════════════════════════

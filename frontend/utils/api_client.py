@@ -84,8 +84,22 @@ class APIClient:
             res.raise_for_status()
             return res.json()
 
-    # ── Quiz ─────────────────────────────────────────────────────────
+    # ── Quiz & Interactive Learning ──────────────────────────────────
     def generate_quiz(
+        self, code: str, language: str = "python", locale: str = "en", workflow: str = "learning"
+    ) -> dict[str, Any]:
+        with httpx.Client(timeout=self.timeout) as c:
+            payload: dict[str, Any] = {
+                "code": code,
+                "language": language,
+                "locale": locale,
+                "workflow": workflow,
+            }
+            res = c.post(f"{self.base_url}/quiz", json=payload)
+            res.raise_for_status()
+            return res.json()
+
+    def generate_learning_material(
         self, code: str, language: str = "python", locale: str = "en"
     ) -> dict[str, Any]:
         with httpx.Client(timeout=self.timeout) as c:
@@ -94,9 +108,40 @@ class APIClient:
                 "language": language,
                 "locale": locale,
             }
-            res = c.post(f"{self.base_url}/quiz", json=payload)
+            res = c.post(f"{self.base_url}/learning/material", json=payload)
             res.raise_for_status()
             return res.json()
+
+    def submit_learning_answers(
+        self,
+        code: str,
+        language: str,
+        answers: dict[str, str],
+        questions_payload: list[dict[str, Any]] | None = None,
+        user_id: int | None = None,
+    ) -> dict[str, Any]:
+        with httpx.Client(timeout=self.timeout) as c:
+            payload: dict[str, Any] = {
+                "code": code,
+                "language": language,
+                "answers": answers,
+                "questions_payload": questions_payload,
+                "user_id": user_id,
+            }
+            res = c.post(f"{self.base_url}/learning/submit", json=payload)
+            res.raise_for_status()
+            return res.json()
+
+    def get_learner_progress(self, user_id: int | None = None) -> list[dict[str, Any]]:
+        try:
+            with httpx.Client(timeout=self.timeout) as c:
+                params = {"user_id": user_id} if user_id else {}
+                res = c.get(f"{self.base_url}/learning/progress", params=params)
+                if res.status_code == 200:
+                    return res.json()
+        except Exception:
+            return []
+        return []
 
     # ── History ───────────────────────────────────────────────────────
     def get_history(self, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:

@@ -33,6 +33,7 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db() -> None:
     """Initialize database tables, ensuring target directory exists."""
+    import backend.models.persistence  # Register all models with Base.metadata
     if settings.DATABASE_URL.startswith("sqlite:///"):
         db_file = settings.DATABASE_URL.replace("sqlite:///", "")
         if db_file and not db_file.startswith(":memory:"):
