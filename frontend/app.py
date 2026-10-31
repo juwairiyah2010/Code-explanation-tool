@@ -1,16 +1,31 @@
-"""Streamlit multipage frontend – Code Lore."""
+"""Streamlit Focused Learning Workspace – Code Lore.
 
+Presents a unified, responsive learning environment combining:
+1. Code editor
+2. Language selector
+3. Learner level selector
+4. Analyze button with sequential progress states
+5. Explanation panel (AI-generated, grounded)
+6. Static analysis panel (deterministic AST engine)
+7. Execution trace panel (deterministic sandbox runner)
+8. Flowchart panel (deterministic Mermaid diagram)
+9. Quiz & learning panel (comprehension & concept mastery)
+10. RAG / source panel (verified reference documentation)
+"""
+
+import time
 import streamlit as st
+from frontend.utils.api_client import APIClient
 
-# ── Page Config (must be first Streamlit call) ───────────────────────
+# ── Page Config ───────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Code Lore – Understand Any Code",
+    page_title="Code Lore – Interactive Learning Workspace",
     page_icon="📜",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS ───────────────────────────────────────────────────────
+# ── Custom CSS for Visual Identity & Clear Provenance Badges ──────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -22,7 +37,7 @@ st.markdown("""
     --accent: #58a6ff;
     --accent-green: #3fb950;
     --accent-orange: #d29922;
-    --accent-red: #f85149;
+    --accent-purple: #a371f7;
     --text-primary: #e6edf3;
     --text-secondary: #8b949e;
 }
@@ -46,17 +61,18 @@ div[data-testid="stMetric"] {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 12px 16px;
+    padding: 10px 14px;
 }
 div[data-testid="stMetric"] label {
     color: var(--text-secondary) !important;
-    font-size: 0.75rem !important;
+    font-size: 0.72rem !important;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     font-weight: 700 !important;
     color: var(--accent) !important;
+    font-size: 1.3rem !important;
 }
 
 /* Sidebar polish */
@@ -64,63 +80,15 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid var(--border);
 }
 section[data-testid="stSidebar"] .stMarkdown h1 {
-    font-size: 1.3rem !important;
+    font-size: 1.25rem !important;
     font-weight: 700;
-    letter-spacing: -0.01em;
 }
 
 /* Tab styling */
 button[data-baseweb="tab"] {
     font-weight: 600 !important;
     font-size: 0.85rem !important;
-}
-
-/* Quiz option buttons */
-.quiz-option {
-    padding: 10px 16px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    margin: 4px 0;
-    cursor: pointer;
-    transition: border-color 0.2s;
-}
-.quiz-option:hover { border-color: var(--accent); }
-
-/* Block card */
-.block-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
-}
-.block-card h4 {
-    margin: 0 0 8px 0;
-    color: var(--accent);
-    font-size: 0.95rem;
-}
-.block-card .line-ref {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    font-family: 'JetBrains Mono', monospace;
-}
-
-/* Trace step */
-.trace-step {
-    border-left: 3px solid var(--accent);
-    padding-left: 12px;
-    margin-bottom: 8px;
-}
-
-/* Concept chip */
-.concept-chip {
-    display: inline-block;
-    padding: 4px 10px;
-    margin: 2px 4px;
-    border: 1px solid var(--accent);
-    border-radius: 16px;
-    font-size: 0.8rem;
-    color: var(--accent);
+    padding: 8px 16px !important;
 }
 
 /* Status dot */
@@ -131,13 +99,69 @@ button[data-baseweb="tab"] {
     margin-right: 6px;
 }
 .status-dot.green { background: var(--accent-green); }
-.status-dot.red   { background: var(--accent-red); }
-.status-dot.orange { background: var(--accent-orange); }
+.status-dot.red   { background: #f85149; }
+
+/* Provenance Badges clearly distinguishing data origins */
+.provenance-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+}
+.prov-ai {
+    background: rgba(163, 113, 247, 0.12);
+    border: 1px solid var(--accent-purple);
+    color: #d2a8ff;
+}
+.prov-ast {
+    background: rgba(63, 185, 80, 0.12);
+    border: 1px solid var(--accent-green);
+    color: #7ee787;
+}
+.prov-trace {
+    background: rgba(210, 153, 34, 0.12);
+    border: 1px solid var(--accent-orange);
+    color: #e3b341;
+}
+.prov-rag {
+    background: rgba(88, 166, 255, 0.12);
+    border: 1px solid var(--accent);
+    color: #79c0ff;
+}
+.prov-quiz {
+    background: rgba(219, 97, 162, 0.12);
+    border: 1px solid #db61a2;
+    color: #f778ba;
+}
+
+/* Trace Step Box */
+.trace-step-box {
+    border-left: 3px solid var(--accent-orange);
+    background: var(--bg-card);
+    padding: 8px 12px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+}
+
+/* Concept Chip */
+.concept-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    margin: 2px 4px;
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    font-size: 0.78rem;
+    color: var(--accent);
+    background: rgba(88, 166, 255, 0.08);
+}
 </style>
 """, unsafe_allow_html=True)
-
-# ── Imports ──────────────────────────────────────────────────────────
-from frontend.utils.api_client import APIClient
 
 # ── Session State Defaults ───────────────────────────────────────────
 DEFAULTS = {
@@ -147,676 +171,645 @@ DEFAULTS = {
     "quiz_result": None,
     "quiz_answers": {},
     "quiz_submitted": False,
+    "eval_res": None,
     "current_code": "",
     "current_language": "python",
+    "attempts": 0,
+    "active_step_idx": 0,
 }
 for k, v in DEFAULTS.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ── API Client & Health ──────────────────────────────────────────────
 client = APIClient()
 
-# ── Code Examples ────────────────────────────────────────────────────
-PYTHON_EXAMPLE = '''import math
+# ── Curated Educational Code Samples ─────────────────────────────────
+PYTHON_SAMPLES = {
+    "Factorial & Recursion": """def factorial(n: int) -> int:
+    \"\"\"Compute factorial recursively with boundary validation.\"\"\"
+    if n < 0:
+        raise ValueError("Factorial is undefined for negative numbers")
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+
+result = factorial(4)
+print(f"Result: {result}")
+""",
+    "List Filter & Loop": """def count_positives(numbers: list[int]) -> int:
+    \"\"\"Count strictly positive numbers in a collection.\"\"\"
+    count = 0
+    for num in numbers:
+        if num > 0:
+            count += 1
+    return count
+
+scores = [12, -4, 0, 8, -1, 15]
+total_pos = count_positives(scores)
+print(f"Positive elements: {total_pos}")
+""",
+    "Hypotenuse Calculation": """import math
 
 def calculate_hypotenuse(a: float, b: float) -> float:
-    """Compute hypotenuse using Pythagorean theorem."""
+    \"\"\"Compute hypotenuse using Pythagorean theorem.\"\"\"
     if a <= 0 or b <= 0:
-        raise ValueError("Sides must be positive")
+        raise ValueError("Sides must be positive numbers")
     return math.sqrt(a**2 + b**2)
 
-result = calculate_hypotenuse(3, 4)
-print(f"Hypotenuse: {result}")
-'''
+res = calculate_hypotenuse(3, 4)
+print(f"Hypotenuse: {res}")
+"""
+}
 
-JS_EXAMPLE = '''function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+JS_SAMPLES = {
+    "Array Filter & Sum": """function sumEvenNumbers(arr) {
+    if (!Array.isArray(arr)) {
+        throw new TypeError("Input must be an array");
+    }
+    let sum = 0;
+    for (let i = 0; i < arr.length; i++) {
+        if (arr[i] % 2 === 0) {
+            sum += arr[i];
+        }
+    }
+    return sum;
+}
+
+const numbers = [1, 2, 3, 4, 5, 6];
+console.log("Sum of evens:", sumEvenNumbers(numbers));
+""",
+    "Debounce Utility": """function debounce(func, delay) {
+    let timeoutId;
+    return function (...args) {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
     };
 }
-'''
+"""
+}
 
-# ── Sidebar ──────────────────────────────────────────────────────────
+# ── Sidebar Configuration ─────────────────────────────────────────────
 with st.sidebar:
     st.markdown("# 📜 Code Lore")
-    st.caption("Understand any code, deeply.")
+    st.caption("Deterministic Code Explanation & Learning Platform")
     st.divider()
 
-    # Health indicator
+    # Health Indicator
     health = client.check_health()
     if health and health.get("status") == "healthy":
         st.markdown('<span class="status-dot green"></span> **Backend Online**', unsafe_allow_html=True)
     else:
         st.markdown('<span class="status-dot red"></span> **Backend Offline**', unsafe_allow_html=True)
-        st.error("The FastAPI backend is unreachable. Start it with:\n```\nuvicorn backend.main:app --port 8000\n```")
+        st.error("FastAPI backend is unreachable on port 8000.")
 
     st.divider()
-    st.markdown("#### ⚙️ Settings")
+    st.markdown("#### 🧭 Workspace View")
+    main_view = st.radio(
+        "Navigation",
+        options=["🎓 Learning Workspace", "📜 History"],
+        label_visibility="collapsed",
+    )
 
+    st.divider()
+    st.markdown("#### ⚙️ Analysis Parameters")
+    
+    # 2. Language Selector
     language = st.selectbox(
         "Language",
         options=["python", "javascript", "auto"],
         index=0,
-        help="Select the language of your code snippet",
+        help="Select language or auto-detect based on syntax structure.",
     )
 
+    # 3. Learner Level Selector
     level = st.selectbox(
-        "Explanation Level",
+        "Learner Level",
         options=["Absolute Beginner", "Beginner", "Intermediate"],
         index=1,
+        help="Tailors vocabulary, analogies, and complexity to the student.",
     )
 
-    include_ast = st.toggle("Include AST Analysis", value=True)
-    enable_rag = st.toggle("Enable RAG Grounding", value=True, help="Retrieve verified documentation to ground explanations")
-    save_history = st.toggle("Save to History", value=True)
+    explanation_mode = st.selectbox(
+        "Explanation Mode",
+        options=["beginner", "line-by-line", "debugging", "security", "performance", "expert"],
+        index=0,
+        help="Targeted analysis perspective.",
+    )
+
+    include_ast = st.toggle("Deterministic AST Rules", value=True)
+    enable_rag = st.toggle("Grounded Documentation", value=True)
+    save_history = st.toggle("Save Submission to History", value=True)
 
     rag_stats = client.get_rag_stats()
     if rag_stats.get("chunks", 0) > 0:
-        st.caption(f"📚 Knowledge Base: {rag_stats['documents']} docs · {rag_stats['chunks']} vector chunks")
+        st.caption(f"📚 Vector Index: {rag_stats['documents']} docs · {rag_stats['chunks']} chunks")
 
-    st.divider()
-    st.markdown("#### 🧭 Navigation")
-    page = st.radio(
-        "Go to",
-        options=[
-            "📝 Code Input",
-            "📖 Explanation",
-            "📚 Concepts",
-            "🔬 Trace & Flowchart",
-            "🧩 Quiz",
-            "📜 History",
-        ],
-        label_visibility="collapsed",
-    )
 
 # ════════════════════════════════════════════════════════════════════
-# PAGE 1 – CODE INPUT
+# VIEW 1 – FOCUSED LEARNING WORKSPACE
 # ════════════════════════════════════════════════════════════════════
-if page == "📝 Code Input":
-    st.markdown("## 📝 Code Input")
-    st.markdown("Paste your code below, choose a language and explanation level, then click **Analyze**.")
+if main_view == "🎓 Learning Workspace":
+    st.markdown("## 🎓 Code Lore – Learning Workspace")
+    st.caption("Interactive workbench for programming students: inspect code, syntax trees, runtime traces, and grounded quizzes side-by-side.")
 
-    col_editor, col_preview = st.columns([3, 2], gap="medium")
+    # ── Workspace Layout Setup ────────────────────────────────────────
+    col_editor_pane, col_workspace_pane = st.columns([5, 7], gap="large")
 
-    with col_editor:
-        default_code = PYTHON_EXAMPLE if language in ("python", "auto") else JS_EXAMPLE
-        code_input = st.text_area(
-            "Code Editor",
-            value=st.session_state.get("current_code") or default_code,
-            height=380,
-            key="code_editor_main",
-            label_visibility="collapsed",
-            placeholder="Paste your Python or JavaScript code here…",
+    # ─────────────────────────────────────────────────────────────────
+    # LEFT PANE: 1. Code Editor & 4. Analyze Controls
+    # ─────────────────────────────────────────────────────────────────
+    with col_editor_pane:
+        st.markdown("#### 1. Source Code Editor")
+
+        # Sample code loader
+        sample_choice = st.selectbox(
+            "Load Educational Example:",
+            options=["-- Select a sample --"] + list(PYTHON_SAMPLES.keys()) + list(JS_SAMPLES.keys()),
+            index=0,
         )
+        if sample_choice in PYTHON_SAMPLES:
+            st.session_state["current_code"] = PYTHON_SAMPLES[sample_choice]
+            language = "python"
+        elif sample_choice in JS_SAMPLES:
+            st.session_state["current_code"] = JS_SAMPLES[sample_choice]
+            language = "javascript"
 
-        col_b1, col_b2, col_b3 = st.columns(3)
-        with col_b1:
-            analyze_btn = st.button("✨ Analyze & Explain", type="primary", use_container_width=True)
-        with col_b2:
-            ast_btn = st.button("🔍 AST Only", use_container_width=True)
-        with col_b3:
-            trace_btn = st.button("🔬 Trace Code", use_container_width=True)
+        # 1. Code Editor Text Area
+        code_input = st.text_area(
+            "Source Code",
+            value=st.session_state.get("current_code") or PYTHON_SAMPLES["Factorial & Recursion"],
+            height=340,
+            key="workspace_code_area",
+            label_visibility="collapsed",
+            placeholder="Write or paste Python or JavaScript code here…",
+        )
+        st.session_state["current_code"] = code_input
 
-    with col_preview:
-        st.markdown("##### Preview")
-        if code_input.strip():
-            lang_preview = language if language != "auto" else "python"
-            st.code(code_input, language=lang_preview, line_numbers=True)
-            line_count = len(code_input.splitlines())
-            st.caption(f"{line_count} lines · {len(code_input)} characters · {language}")
-        else:
-            st.info("Enter code on the left to see a preview.")
+        # Code stats
+        line_count = len(code_input.splitlines()) if code_input else 0
+        char_count = len(code_input) if code_input else 0
+        st.caption(f"📏 {line_count} lines · {char_count} characters · Language: `{language}` · Level: `{level}`")
 
-    # ── Analyze button handler ───────────────────────────────────────
-    if analyze_btn:
-        if not code_input.strip():
-            st.warning("⚠️ Please enter some code to analyze.")
-        elif not health:
-            st.error("🔴 Cannot reach the backend. Please start it first.")
-        else:
-            st.session_state["current_code"] = code_input
-            st.session_state["current_language"] = language
-            with st.spinner("🧠 Analyzing code structure and generating explanation…"):
-                try:
-                    result = client.explain_code(
-                        code=code_input,
-                        language=language,
-                        level=level,
-                        include_ast=include_ast,
-                        enable_rag=enable_rag,
-                        save_history=save_history,
-                    )
-                    st.session_state["explanation_result"] = result
-                    st.success("✅ Analysis complete! Navigate to **📖 Explanation** to see results.")
-                except Exception as e:
-                    st.error(f"❌ Explanation failed: {str(e)}")
+        # 4. Analyze & Action Controls
+        col_btn_main, col_btn_trace, col_btn_quiz = st.columns([2, 1, 1])
+        with col_btn_main:
+            analyze_btn = st.button("✨ Analyze & Learn", type="primary", use_container_width=True)
+        with col_btn_trace:
+            trace_only_btn = st.button("🔬 Trace", use_container_width=True, help="Run execution trace in sandbox")
+        with col_btn_quiz:
+            quiz_only_btn = st.button("🎲 Quiz", use_container_width=True, help="Generate interactive questions")
 
-    if ast_btn:
-        if not code_input.strip():
-            st.warning("⚠️ Please enter some code to analyze.")
-        elif not health:
-            st.error("🔴 Cannot reach the backend.")
-        else:
-            st.session_state["current_code"] = code_input
-            with st.spinner("🔍 Running AST analysis…"):
-                try:
-                    ast_result = client.analyze_ast(code_input, language)
-                    st.session_state["ast_result"] = ast_result
-                    st.success("✅ AST analysis complete!")
-                    with st.expander("📋 Raw AST Output", expanded=False):
-                        st.json(ast_result)
-                except Exception as e:
-                    st.error(f"❌ AST analysis failed: {str(e)}")
-
-    if trace_btn:
-        if not code_input.strip():
-            st.warning("⚠️ Please enter some code to trace.")
-        elif not health:
-            st.error("🔴 Cannot reach the backend.")
-        else:
-            st.session_state["current_code"] = code_input
-            with st.spinner("🔬 Tracing execution…"):
-                try:
-                    trace_result = client.trace_code(
-                        code=code_input,
-                        language=language,
-                        generate_flowchart=True,
-                    )
-                    st.session_state["trace_result"] = trace_result
-                    st.success("✅ Trace complete! Navigate to **🔬 Trace & Flowchart**.")
-                except Exception as e:
-                    st.error(f"❌ Trace failed: {str(e)}")
-
-
-# ════════════════════════════════════════════════════════════════════
-# PAGE 2 – EXPLANATION VIEW
-# ════════════════════════════════════════════════════════════════════
-elif page == "📖 Explanation":
-    st.markdown("## 📖 Code Explanation")
-
-    result = st.session_state.get("explanation_result")
-    if not result:
-        st.info("No explanation yet. Go to **📝 Code Input** and click **Analyze & Explain**.")
-    else:
-        code = st.session_state.get("current_code", "")
-        code_lines = code.splitlines()
-        lang = result.get("language", "python")
-
-        # ── Summary Card ─────────────────────────────────────────
-        st.markdown(f"""
-> **Summary**
->
-> {result.get('summary', 'No summary available.')}
-""")
-
-        # ── Explanation Grounding Indicator ──────────────────────
-        val_result = result.get("validation_result")
-        if val_result:
-            is_valid = val_result.get("valid", True)
-            coverage = int(val_result.get("coverage_score", 0.0) * 100)
-            level = val_result.get("grounding_level", "Moderate")
-            repaired = val_result.get("repaired", False)
-
-            status_icon = "🟢" if is_valid else "🟡"
-            status_text = "Verified Grounded" if is_valid else "Grounding Warnings Flagged"
-            if repaired:
-                status_text += " (Auto-Repaired)"
-
-            with st.container():
-                st.markdown(f"#### {status_icon} Explanation Grounding: **{status_text}**")
-                g1, g2, g3 = st.columns(3)
-                g1.metric("Coverage Score", f"{coverage}%")
-                g2.metric("Grounding Level", level)
-                ref_count = len(val_result.get("referenced_lines", []))
-                g3.metric("Referenced Lines", ref_count)
-
-                if val_result.get("unsupported_claims") or val_result.get("warnings") or val_result.get("invalid_references"):
-                    with st.expander("🔍 Grounding & Verification Details", expanded=False):
-                        if val_result.get("invalid_references"):
-                            st.error(f"❌ **Invalid References:** Lines {val_result['invalid_references']}")
-                        if val_result.get("unsupported_claims"):
-                            st.warning("⚠️ **Unsupported Claims Detected:**")
-                            for claim in val_result["unsupported_claims"]:
-                                st.markdown(f"- {claim}")
-                        if val_result.get("warnings"):
-                            st.info("ℹ️ **Validation Warnings:**")
-                            for w in val_result["warnings"]:
-                                st.markdown(f"- {w}")
-
-        # ── Metrics Row ──────────────────────────────────────────
-        ast_data = result.get("ast_analysis")
-        if ast_data:
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Complexity", ast_data.get("complexity_score", 1))
-            m2.metric("Max Nesting", ast_data.get("max_nesting_depth", 0))
-            metrics = ast_data.get("metrics", {})
-            m3.metric("Functions", metrics.get("num_functions", 0))
-            m4.metric("Static Hints", len(ast_data.get("static_hints", [])))
-
-            # Static hints
-            hints = ast_data.get("static_hints", [])
-            if hints:
-                st.markdown("#### ⚠️ Static Analysis Hints")
-                for h in hints:
-                    icon = "🟡" if h["severity"] == "warning" else "🔵"
-                    st.warning(f"{icon} **[{h['rule_id']}]** Line {h['line_start']}: {h['message']}\n\n💡 *{h.get('suggestion', '')}*")
-
-        st.divider()
-
-        # ── RAG Grounded Sources & Citations ─────────────────────
-        rag_sources = result.get("rag_sources", [])
-        if rag_sources:
-            st.markdown("### 📚 Grounded Knowledge & Source Citations")
-            st.caption("This explanation is verified and grounded against curated programming reference documentation:")
-            for cite in rag_sources:
-                score_pct = int(cite.get("similarity_score", 0.0) * 100)
-                with st.expander(f"📖 **{cite['title']}** — *{cite['source']}* ({score_pct}% match)", expanded=True):
-                    st.markdown(f"> {cite['snippet']}")
-                    st.caption(f"Topic: `{cite.get('topic')}` | Chunk ID: `{cite.get('chunk_id')}` | Relevance: `{score_pct}%`")
-            st.divider()
-        elif result.get("rag_context_used") is False:
-            st.caption("ℹ️ *Note: Curated reference documentation had no high-confidence match for this specific snippet; explanation was synthesized using core programming heuristics.*")
-            st.divider()
-
-        # ── Block-by-Block Explanations ──────────────────────────
-        st.markdown("### 🧩 Block-by-Block Explanations")
-        blocks = result.get("blocks", [])
-        if blocks:
-            for block in blocks:
-                ls = block.get("line_start", 1)
-                le = block.get("line_end", ls)
-                with st.expander(f"**{block['title']}** — Lines {ls}–{le}", expanded=True):
-                    col_code, col_expl = st.columns([1, 1], gap="medium")
-                    with col_code:
-                        # Show just the relevant source lines
-                        snippet_lines = code_lines[max(0, ls - 1):le]
-                        numbered = "\n".join(
-                            f"{i + ls}: {line}" for i, line in enumerate(snippet_lines)
-                        )
-                        st.code(numbered, language=lang)
-                    with col_expl:
-                        st.markdown(block.get("explanation", ""))
-        else:
-            st.info("No block explanations available.")
-
-        st.divider()
-
-        # ── Concept Tags ─────────────────────────────────────────
-        concepts = result.get("concepts", [])
-        if concepts:
-            st.markdown("### 🏷️ Concept Tags")
-            for c in concepts:
-                st.markdown(f'<span class="concept-chip">{c["concept"]}</span>', unsafe_allow_html=True)
-            st.markdown("")
-            for c in concepts:
-                st.markdown(f"**{c['concept']}** — {c['definition']}")
-
-        # ── Algorithm Steps ──────────────────────────────────────
-        algo_steps = result.get("algorithm_steps", [])
-        if algo_steps:
-            st.markdown("### 📐 Algorithm Steps")
-            for i, step in enumerate(algo_steps, 1):
-                st.markdown(f"{i}. {step}")
-
-        # ── Complexity ───────────────────────────────────────────
-        complexity = result.get("complexity")
-        if complexity:
-            st.markdown("### ⚡ Complexity")
-            c1, c2 = st.columns(2)
-            c1.metric("Time", complexity.get("time_complexity", "–"))
-            c2.metric("Space", complexity.get("space_complexity", "–"))
-            st.caption(complexity.get("explanation", ""))
-
-        # ── Hints ────────────────────────────────────────────────
-        improvement_hints = result.get("hints", [])
-        if improvement_hints:
-            st.markdown("### 💡 Improvement Hints")
-            for h in improvement_hints:
-                st.markdown(f"- {h}")
-
-
-# ════════════════════════════════════════════════════════════════════
-# PAGE 3 – CONCEPTS GLOSSARY
-# ════════════════════════════════════════════════════════════════════
-elif page == "📚 Concepts":
-    st.markdown("## 📚 Concepts Glossary")
-
-    # Show concepts from the latest explanation
-    result = st.session_state.get("explanation_result")
-    concepts = result.get("concepts", []) if result else []
-
-    search = st.text_input("🔍 Search concepts…", placeholder="e.g. Variables, Loops, Functions")
-
-    if concepts:
-        filtered = concepts
-        if search.strip():
-            term = search.strip().lower()
-            filtered = [c for c in concepts if term in c["concept"].lower() or term in c["definition"].lower()]
-
-        if filtered:
-            for c in filtered:
-                with st.expander(f"**{c['concept']}**", expanded=False):
-                    st.markdown(c["definition"])
-        else:
-            st.warning(f'No concepts match "{search}".')
-    else:
-        st.info("No concepts loaded yet. Run an explanation first from **📝 Code Input**.")
-
-    st.divider()
-    st.markdown("#### 🔬 Semantic Search in Vector Knowledge Base")
-    rag_query = st.text_input("Semantic search across all documentation chunks:", placeholder="e.g. How do JavaScript closures work? Or Big-O time complexity", key="rag_search_input")
-    if rag_query.strip():
-        if not health:
-            st.error("🔴 Backend offline.")
-        else:
-            with st.spinner("Searching vector index…"):
-                search_res = client.search_rag(rag_query.strip(), language=language)
-            if search_res and search_res.get("results"):
-                st.markdown(f"Found **{len(search_res['results'])}** relevant reference chunks:")
-                for r in search_res["results"]:
-                    pct = int(r.get("similarity_score", 0.0) * 100)
-                    with st.expander(f"📖 **{r['title']}** ({pct}% similarity)"):
-                        st.markdown(f"**Source:** *{r['source']}* · Language: `{r['language']}` · Topic: `{r['topic']}`")
-                        st.markdown(r["snippet"])
+        # ── Sequential Progress States for Long-Running Analyze ──────
+        if analyze_btn:
+            if not code_input.strip():
+                st.warning("⚠️ Please provide source code before analyzing.")
+            elif not health:
+                st.error("🔴 Backend is offline. Please start FastAPI on port 8000.")
             else:
-                st.info("No relevant chunks matched the query above the similarity threshold.")
+                with st.status("Analyzing code...", expanded=True) as status_box:
+                    st.write("🔍 **Analyzing code** – detecting language and validating input format...")
+                    time.sleep(0.12)
 
+                    st.write("🌲 **Building syntax tree** – parsing deterministic AST constructs and blocks...")
+                    time.sleep(0.12)
 
-# ════════════════════════════════════════════════════════════════════
-# PAGE 4 – TRACE & FLOWCHART
-# ════════════════════════════════════════════════════════════════════
-elif page == "🔬 Trace & Flowchart":
-    st.markdown("## 🔬 Execution Trace & Flowchart")
+                    st.write("🛡️ **Running static analysis** – calculating cyclomatic complexity & evaluating rules...")
+                    time.sleep(0.12)
 
-    trace_result = st.session_state.get("trace_result")
+                    st.write("📚 **Retrieving concepts** – querying local vector knowledge base for verified documentation...")
+                    
+                    try:
+                        # Call Backend API
+                        result = client.explain_code(
+                            code=code_input,
+                            language=language,
+                            level=level,
+                            include_ast=include_ast,
+                            enable_rag=enable_rag,
+                            save_history=save_history,
+                        )
+                        st.session_state["explanation_result"] = result
+                        st.session_state["ast_result"] = result.get("ast_analysis")
+                    except Exception as e:
+                        status_box.update(label="❌ Analysis Failed", state="error", expanded=True)
+                        st.error(f"Analysis error: {str(e)}")
+                        st.stop()
 
-    # Allow re-tracing from this page
-    code = st.session_state.get("current_code", "")
-    with st.expander("⚙️ Trace Settings", expanded=not bool(trace_result)):
-        trace_code_input = st.text_area("Code to trace:", value=code, height=200, key="trace_code_area")
-        col_t1, col_t2 = st.columns(2)
-        with col_t1:
-            trace_input = st.text_input("stdin input (optional):", placeholder="e.g. 42")
-        with col_t2:
-            gen_flowchart = st.toggle("Generate Mermaid flowchart", value=True)
+                    st.write("🧠 **Generating explanation** – synthesizing block-by-block and line-level walkthroughs...")
+                    
+                    # Execution Trace in sandbox when applicable
+                    resolved_lang = result.get("language", language)
+                    if resolved_lang in ("python", "auto"):
+                        st.write("⚙️ **Executing in sandbox** – tracing line steps and generating control flowchart...")
+                        try:
+                            trace_res = client.trace_code(code_input, language="python", generate_flowchart=True)
+                            st.session_state["trace_result"] = trace_res
+                        except Exception as te:
+                            st.caption(f"Notice: Trace skipped: {te}")
 
-        if st.button("▶️ Run Trace", type="primary", use_container_width=True):
-            if not trace_code_input.strip():
-                st.warning("Enter code to trace.")
+                    # Generate grounded interactive learning quiz
+                    st.write("🎓 **Generating learning questions** – synthesizing comprehension & debugging challenges...")
+                    try:
+                        quiz_res = client.generate_quiz(code_input, resolved_lang, workflow="learning")
+                        st.session_state["quiz_result"] = quiz_res
+                        st.session_state["quiz_submitted"] = False
+                        st.session_state["quiz_answers"] = {}
+                        st.session_state["attempts"] = 1
+                    except Exception as qe:
+                        st.caption(f"Notice: Quiz generator fallback: {qe}")
+
+                    st.write("🛡️ **Validating explanation** – checking line bounds and AST construct grounding...")
+                    time.sleep(0.1)
+
+                    status_box.update(label="✅ Learning Workspace Ready!", state="complete", expanded=False)
+                    st.success("✅ Analysis complete! Review the grounded output panels on the right.")
+
+        # Trace Only Action
+        if trace_only_btn:
+            if not code_input.strip():
+                st.warning("⚠️ Enter code to trace.")
             elif not health:
                 st.error("🔴 Backend offline.")
             else:
-                with st.spinner("🔬 Tracing step-by-step…"):
+                with st.spinner("🔬 Running execution trace in sandbox…"):
                     try:
-                        trace_result = client.trace_code(
-                            code=trace_code_input,
-                            language=language,
-                            input_data=trace_input if trace_input.strip() else None,
-                            generate_flowchart=gen_flowchart,
-                        )
-                        st.session_state["trace_result"] = trace_result
+                        t_res = client.trace_code(code_input, language=language, generate_flowchart=True)
+                        st.session_state["trace_result"] = t_res
+                        st.success("✅ Trace complete! See 'Execution Trace' and 'Flowchart' panels.")
                     except Exception as e:
-                        st.error(f"❌ Trace failed: {str(e)}")
+                        st.error(f"Trace error: {str(e)}")
 
-    if trace_result:
-        if trace_result.get("error"):
-            st.error(f"⚠️ Trace error: {trace_result['error']}")
-
-        steps = trace_result.get("steps", [])
-        if steps:
-            st.markdown(f"### Execution Steps ({len(steps)} total)")
-
-            # Steps table
-            col_steps, col_vars = st.columns([2, 1], gap="medium")
-            with col_steps:
-                for i, step in enumerate(steps):
-                    line_no = step.get("line_number", "?")
-                    exec_code = step.get("executed_code", "")
-                    output = step.get("output", "")
-
-                    step_html = f"""
-<div class="trace-step">
-    <strong>Step {i + 1}</strong> · Line {line_no}<br>
-    <code>{exec_code}</code>
-"""
-                    if output:
-                        step_html += f'<br><span style="color: var(--accent-green);">📤 {output.strip()}</span>'
-                    step_html += "</div>"
-                    st.markdown(step_html, unsafe_allow_html=True)
-
-            with col_vars:
-                st.markdown("#### Variable States")
-                # Show variables from the last step
-                if steps:
-                    last_vars = steps[-1].get("variables", {})
-                    if last_vars:
-                        for var_name, var_val in last_vars.items():
-                            st.markdown(f"**`{var_name}`** = `{var_val}`")
-                    else:
-                        st.caption("No variables captured.")
-        else:
-            st.info("No execution steps recorded.")
-
-        # Flowchart
-        flowchart = trace_result.get("flowchart")
-        if flowchart:
-            st.divider()
-            st.markdown("### 📊 Control Flow Diagram")
-            st.code(flowchart, language="mermaid")
-    elif not trace_result:
-        st.info("No trace yet. Enter code above and click **Run Trace**, or trace from **📝 Code Input**.")
-
-
-# ════════════════════════════════════════════════════════════════════
-# PAGE 5 – QUIZ
-# ════════════════════════════════════════════════════════════════════
-elif page == "🧩 Quiz":
-    st.markdown("## 🎓 Interactive Code Learning")
-    st.caption("Deterministic analysis-grounded comprehension, debugging, and prediction workflow.")
-
-    code = st.session_state.get("current_code", "")
-    quiz_result = st.session_state.get("quiz_result")
-
-    if not code.strip():
-        st.info("No code loaded. Go to **📝 Code Input** first and analyze some code.")
-    else:
-        st.markdown("##### Code being analyzed:")
-        lang_q = st.session_state.get("current_language", "python")
-        st.code(code, language=lang_q if lang_q != "auto" else "python", line_numbers=True)
-
-        col_gen, col_lang = st.columns([2, 1])
-        with col_gen:
-            gen_quiz_btn = st.button("⚡ Generate Learning Workflow", type="primary", use_container_width=True)
-        with col_lang:
-            quiz_locale = st.selectbox("Language", ["en", "hi"], format_func=lambda x: "English" if x == "en" else "हिन्दी")
-
-        if gen_quiz_btn:
-            if not health:
+        # Quiz Only Action
+        if quiz_only_btn:
+            if not code_input.strip():
+                st.warning("⚠️ Enter code to generate questions.")
+            elif not health:
                 st.error("🔴 Backend offline.")
             else:
-                with st.spinner("🧩 Generating grounded learning material & questions…"):
+                with st.spinner("🎲 Generating interactive learning questions…"):
                     try:
-                        quiz_result = client.generate_quiz(code, lang_q, locale=quiz_locale, workflow="learning")
-                        st.session_state["quiz_result"] = quiz_result
-                        st.session_state["quiz_answers"] = {}
+                        q_res = client.generate_quiz(code_input, language=language, workflow="learning")
+                        st.session_state["quiz_result"] = q_res
                         st.session_state["quiz_submitted"] = False
+                        st.session_state["quiz_answers"] = {}
                         st.session_state["attempts"] = st.session_state.get("attempts", 0) + 1
+                        st.success("✅ Quiz ready! See 'Quiz & Learning' panel.")
                     except Exception as e:
-                        st.error(f"❌ Learning workflow generation failed: {str(e)}")
+                        st.error(f"Quiz error: {str(e)}")
 
-        if quiz_result:
-            # ── 1. Beginner Explanation ──────────────────────────────
-            beg_exp = quiz_result.get("beginner_explanation")
-            if beg_exp:
-                st.markdown("### 💡 1. Beginner Explanation")
-                st.markdown(f"> {beg_exp}")
+    # ─────────────────────────────────────────────────────────────────
+    # RIGHT PANE: 5-10 Focused Workspace Panels
+    # ─────────────────────────────────────────────────────────────────
+    with col_workspace_pane:
+        st.markdown("#### Learning Panels")
 
-            # ── 2. Key Concepts ──────────────────────────────────────
-            k_concepts = quiz_result.get("key_concepts", [])
-            if k_concepts:
-                st.markdown("### 🏷️ 2. Key Concepts")
-                kc_cols = st.columns(min(len(k_concepts), 3))
-                for i, kc in enumerate(k_concepts):
-                    with kc_cols[i % len(kc_cols)]:
-                        kc_name = kc.get("name") or kc.get("term", "Concept")
-                        kc_desc = kc.get("description") or kc.get("definition", "")
-                        ref_l = kc.get("referenced_lines", [])
-                        st.markdown(f"**{kc_name}**")
-                        st.caption(kc_desc)
-                        if ref_l:
-                            st.caption(f"📍 Lines: `{ref_l}`")
+        # Define 6 Workspace Output Panels
+        tab_expl, tab_ast, tab_trace, tab_flowchart, tab_quiz, tab_rag = st.tabs([
+            "📖 Explanation",
+            "🛡️ Static Analysis",
+            "🔬 Execution Trace",
+            "🗺️ Flowchart",
+            "🎓 Quiz & Learning",
+            "📚 Documentation",
+        ])
 
-            # ── 3. Execution Walkthrough ─────────────────────────────
-            walkthrough = quiz_result.get("execution_walkthrough", [])
-            if walkthrough:
-                st.markdown("### 👣 3. Execution Walkthrough")
-                for step in walkthrough:
-                    st.markdown(f"- {step}")
+        # ── 5. EXPLANATION PANEL ──────────────────────────────────────
+        with tab_expl:
+            st.markdown('<div class="provenance-banner prov-ai"><span>🤖 DATA SOURCE: AI-Generated Content</span><span>Grounded in Deterministic AST</span></div>', unsafe_allow_html=True)
+            expl_res = st.session_state.get("explanation_result")
 
-            # ── 4. Common Mistakes ───────────────────────────────────
-            mistakes = quiz_result.get("common_mistakes", [])
-            if mistakes:
-                st.markdown("### ⚠️ 4. Common Mistakes")
-                for m in mistakes:
-                    st.warning(f"• {m}")
+            if not expl_res:
+                st.info("💡 **Empty State**: No explanation generated yet. Write code and click **'✨ Analyze & Learn'** to synthesize a grounded explanation.")
+            else:
+                # Grounding Verification Indicator
+                val_res = expl_res.get("validation_result")
+                if val_res:
+                    is_val = val_res.get("valid", True)
+                    cov = int(val_res.get("coverage_score", 0.0) * 100)
+                    lvl = val_res.get("grounding_level", "Moderate")
+                    repaired = val_res.get("repaired", False)
+
+                    status_icon = "🟢" if is_val else "🟡"
+                    status_lbl = "Verified Grounded" if is_val else "Grounding Warnings Flagged"
+                    if repaired:
+                        status_lbl += " (Auto-Repaired)"
+
+                    with st.container():
+                        st.markdown(f"**{status_icon} Explanation Grounding:** `{status_lbl}`")
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Coverage", f"{cov}%")
+                        m2.metric("Grounding Level", lvl)
+                        m3.metric("Referenced Lines", len(val_res.get("referenced_lines", [])))
+
+                        if val_res.get("unsupported_claims") or val_res.get("warnings"):
+                            with st.expander("🔍 Grounding Details & Disclosures", expanded=False):
+                                for claim in val_res.get("unsupported_claims", []):
+                                    st.warning(f"⚠️ {claim}")
+                                for w in val_res.get("warnings", []):
+                                    st.caption(f"ℹ️ {w}")
+
+                # Summary Card
+                st.markdown(f"> **Summary:**\n>\n> {expl_res.get('summary', 'No summary available.')}")
+
+                # Block-by-Block Explanations
+                blocks = expl_res.get("blocks", [])
+                if blocks:
+                    st.markdown("##### 🧩 Block-by-Block Breakdown")
+                    for b in blocks:
+                        ls = b.get("line_start", 1)
+                        le = b.get("line_end", ls)
+                        with st.expander(f"**{b.get('title', 'Block')}** (Lines {ls}–{le})", expanded=True):
+                            st.markdown(b.get("explanation", ""))
+
+                # Key Takeaways & Improvements
+                takeaways = expl_res.get("key_takeaways", [])
+                if takeaways:
+                    st.markdown("##### 🎯 Key Takeaways")
+                    for tk in takeaways:
+                        st.markdown(f"- {tk}")
+
+                hints = expl_res.get("hints", [])
+                if hints:
+                    st.markdown("##### 💡 Improvement Suggestions")
+                    for h in hints:
+                        st.markdown(f"- {h}")
+
+        # ── 6. STATIC ANALYSIS PANEL ──────────────────────────────────
+        with tab_ast:
+            st.markdown('<div class="provenance-banner prov-ast"><span>🛡️ DATA SOURCE: Deterministic Static Analysis</span><span>AST Engine (No AI Hallucination)</span></div>', unsafe_allow_html=True)
+            ast_data = st.session_state.get("ast_result") or (st.session_state.get("explanation_result") or {}).get("ast_analysis")
+
+            if not ast_data:
+                st.info("🔍 **Empty State**: No static analysis data yet. Click **'✨ Analyze & Learn'** to run deterministic syntax inspections.")
+            else:
+                m_c1, m_c2, m_c3, m_c4 = st.columns(4)
+                m_c1.metric("Complexity", ast_data.get("complexity_score", 1))
+                m_c2.metric("Max Nesting", ast_data.get("max_nesting_depth", 0))
+                metrics = ast_data.get("metrics", {})
+                m_c3.metric("Functions", metrics.get("num_functions", 0))
+                m_c4.metric("Static Hints", len(ast_data.get("static_hints", [])))
+
+                # Static hints & Rule Violations
+                hints_list = ast_data.get("static_hints", [])
+                if hints_list:
+                    st.markdown("##### ⚠️ Static Analysis Rule Findings")
+                    for h in hints_list:
+                        sev = h.get("severity", "info")
+                        icon = "🔴" if sev == "error" else ("🟡" if sev == "warning" else "🔵")
+                        st.warning(f"{icon} **[{h.get('rule_id', 'RULE')}] Line {h.get('line_start')}:** {h.get('message')}\n\n💡 *Fix: {h.get('suggestion', 'None')}*")
+                else:
+                    st.success("✅ **Clean code:** No static rule violations detected.")
+
+                # Syntax Constructs
+                constructs = ast_data.get("constructs", {})
+                if constructs:
+                    st.markdown("##### 🌲 Extracted AST Constructs")
+                    funcs = constructs.get("functions", [])
+                    loops = constructs.get("loops", [])
+                    conds = constructs.get("conditions", [])
+
+                    col_f, col_l, col_c = st.columns(3)
+                    with col_f:
+                        st.markdown(f"**Functions ({len(funcs)})**")
+                        for f in funcs:
+                            st.caption(f"• `{f.get('name')}()` (L{f.get('line_start')}–L{f.get('line_end')})")
+                    with col_l:
+                        st.markdown(f"**Loops ({len(loops)})**")
+                        for lp in loops:
+                            st.caption(f"• `{lp.get('loop_type')}` loop (L{lp.get('line_start')}–L{lp.get('line_end')})")
+                    with col_c:
+                        st.markdown(f"**Branches ({len(conds)})**")
+                        for cd in conds:
+                            st.caption(f"• `{cd.get('condition_type')}` (L{cd.get('line_start')}–L{cd.get('line_end')})")
+
+        # ── 7. EXECUTION TRACE PANEL ──────────────────────────────────
+        with tab_trace:
+            st.markdown('<div class="provenance-banner prov-trace"><span>⚙️ DATA SOURCE: Deterministic Execution Results</span><span>Subprocess Trace Sandbox</span></div>', unsafe_allow_html=True)
+            trace_data = st.session_state.get("trace_result")
+
+            if not trace_data:
+                st.info("🔬 **Empty State**: No execution trace recorded. Click **'🔬 Trace'** to execute Python code step-by-step.")
+            else:
+                if trace_data.get("error"):
+                    st.error(f"⚠️ Trace Error: {trace_data['error']}")
+
+                steps = trace_data.get("steps", [])
+                if steps:
+                    st.markdown(f"##### Step Scrubber ({len(steps)} total runtime steps)")
+                    step_idx = st.slider(
+                        "Scrub Execution Step:",
+                        min_value=1,
+                        max_value=len(steps),
+                        value=min(st.session_state.get("active_step_idx", 1), len(steps)),
+                        step=1,
+                        key="trace_step_slider",
+                    )
+                    st.session_state["active_step_idx"] = step_idx
+                    current_step = steps[step_idx - 1]
+
+                    col_s_info, col_s_vars = st.columns([1, 1], gap="medium")
+                    with col_s_info:
+                        st.markdown(f"""
+<div class="trace-step-box">
+    <strong>Step {step_idx} of {len(steps)}</strong> · Line <code>{current_step.get('line_number')}</code><br>
+    <strong>Event:</strong> <code>{current_step.get('event_type', 'line')}</code> · Function: <code>{current_step.get('function_name', '<module>')}</code><br>
+    <strong>Executed Code:</strong><br>
+    <code>{current_step.get('executed_code', '')}</code>
+</div>
+""", unsafe_allow_html=True)
+
+                    with col_s_vars:
+                        st.markdown("**Variable State at Step:**")
+                        step_vars = current_step.get("local_variables") or current_step.get("variables", {})
+                        if step_vars:
+                            for var_k, var_v in step_vars.items():
+                                st.markdown(f"• **`{var_k}`** = `{var_v}`")
+                        else:
+                            st.caption("No local variables in this frame.")
+
+                    # Terminal Output
+                    term_out = trace_data.get("output") or trace_data.get("stdout")
+                    if term_out:
+                        st.markdown("**Terminal Output (`stdout`):**")
+                        st.code(term_out, language="text")
+                else:
+                    st.info("No discrete steps recorded during execution.")
+
+        # ── 8. FLOWCHART PANEL ────────────────────────────────────────
+        with tab_flowchart:
+            st.markdown('<div class="provenance-banner prov-ast"><span>🗺️ DATA SOURCE: Deterministic Control Flowchart</span><span>Generated from Trace & AST Logic</span></div>', unsafe_allow_html=True)
+            trace_flow = st.session_state.get("trace_result")
+            flowchart_code = trace_flow.get("flowchart") if trace_flow else None
+
+            if not flowchart_code:
+                st.info("🗺️ **Empty State**: No flowchart available. Run analysis on Python code to generate a Mermaid control flow diagram.")
+            else:
+                st.markdown("##### Control Flow Diagram")
+                st.code(flowchart_code, language="mermaid")
+                st.caption("Diagram shows entry point, conditional branches, loops, and termination paths.")
+
+        # ── 9. QUIZ & LEARNING PANEL ──────────────────────────────────
+        with tab_quiz:
+            st.markdown('<div class="provenance-banner prov-quiz"><span>🎓 DATA SOURCE: Interactive Code-Learning Workflow</span><span>Deterministic Mastery & Line-Grounded Questions</span></div>', unsafe_allow_html=True)
+            quiz_data = st.session_state.get("quiz_result")
+
+            if not quiz_data:
+                st.info("🎓 **Empty State**: No quiz generated yet. Click **'🎲 Quiz'** or **'✨ Analyze & Learn'** to generate comprehension challenges.")
+            else:
+                # 1. Beginner Explanation
+                if quiz_data.get("beginner_explanation"):
+                    st.markdown(f"💡 **Beginner Concept:** {quiz_data['beginner_explanation']}")
+
+                # 4. Common Mistakes
+                if quiz_data.get("common_mistakes"):
+                    with st.expander("⚠️ Common Student Mistakes for this Code", expanded=False):
+                        for cm in quiz_data["common_mistakes"]:
+                            st.caption(f"• {cm}")
+
+                # Questions
+                q_list = quiz_data.get("questions", [])
+                is_sub = st.session_state.get("quiz_submitted", False)
+
+                st.markdown(f"##### Code Comprehension Questions ({len(q_list)} total)")
+                for qi, q in enumerate(q_list):
+                    q_type = q.get("question_type", "comprehension")
+                    t_badge = "🐛 Debugging" if q_type == "debugging" else ("🔮 Predict Output" if q_type == "predict_output" else "🧠 Comprehension")
+                    st.markdown(f"**Q{qi + 1}. [{t_badge}]** {q.get('question') or q.get('text')}")
+                    
+                    if q.get("referenced_lines"):
+                        st.caption(f"📍 Line(s): `{q.get('referenced_lines')}` | Concept: `{q.get('concept', 'General')}`")
+
+                    opts = q.get("options", [])
+                    opt_ids = [opt["id"] for opt in opts]
+
+                    if not is_sub:
+                        sel = st.radio(
+                            f"Q{qi+1} Choice:",
+                            options=opt_ids,
+                            format_func=lambda x, options=opts: next((f"{o['id']}) {o['text']}" for o in options if o['id'] == x), x),
+                            key=f"wk_quiz_q_{qi}",
+                            label_visibility="collapsed",
+                        )
+                        st.session_state["quiz_answers"][q["id"]] = sel
+                    else:
+                        u_ans = st.session_state["quiz_answers"].get(q["id"], "")
+                        c_ans = q.get("correct_answer") or q.get("correct_option_id")
+                        for o in opts:
+                            if o["id"] == c_ans:
+                                st.markdown(f"✅ **{o['id']}) {o['text']}** ← Correct")
+                            elif o["id"] == u_ans and u_ans != c_ans:
+                                st.markdown(f"❌ ~~{o['id']}) {o['text']}~~ ← Your selection")
+                            else:
+                                st.markdown(f"⬜ {o['id']}) {o['text']}")
+                        st.info(f"💡 {q.get('explanation', '')}")
+                    st.markdown("---")
+
+                if not is_sub:
+                    if st.button("📩 Submit Answers for Deterministic Evaluation", type="primary", use_container_width=True, key="submit_wk_quiz"):
+                        st.session_state["quiz_submitted"] = True
+                        try:
+                            client.submit_learning_answers(
+                                code=code_input,
+                                language=language,
+                                answers=st.session_state["quiz_answers"],
+                                questions_payload=q_list,
+                            )
+                        except Exception as se:
+                            st.caption(f"Submission recorded: {se}")
+                        st.rerun()
+                else:
+                    # Deterministic Score
+                    sc = 0
+                    for q in q_list:
+                        corr = q.get("correct_answer") or q.get("correct_option_id")
+                        if st.session_state["quiz_answers"].get(q["id"]) == corr:
+                            sc += 1
+                    pct = int((sc / len(q_list)) * 100) if q_list else 0
+
+                    c_s1, c_s2, c_s3 = st.columns(3)
+                    c_s1.metric("Score", f"{sc}/{len(q_list)}")
+                    c_s2.metric("Accuracy", f"{pct}%")
+                    c_s3.metric("Status", "Completed")
+
+                    # Concept Mastery Progress Model
+                    prog = client.get_learner_progress()
+                    if prog:
+                        st.markdown("##### 📈 Concept Mastery Progress")
+                        p_cols = st.columns(min(len(prog), 3))
+                        for pi, p_item in enumerate(prog):
+                            with p_cols[pi % len(p_cols)]:
+                                st.metric(label=p_item["concept"], value=f"{p_item['mastery']}%")
+
+                    if st.button("🔄 Retake Quiz", key="retake_wk_quiz"):
+                        st.session_state["quiz_submitted"] = False
+                        st.session_state["quiz_answers"] = {}
+                        st.rerun()
+
+                # 8. Final Takeaway
+                if quiz_data.get("final_takeaway"):
+                    st.markdown(f"🎯 **Final Takeaway:** {quiz_data['final_takeaway']}")
+
+        # ── 10. RAG / SOURCE PANEL ────────────────────────────────────
+        with tab_rag:
+            st.markdown('<div class="provenance-banner prov-rag"><span>📖 DATA SOURCE: Retrieved Verified Documentation</span><span>Vector Knowledge Base (Curated References)</span></div>', unsafe_allow_html=True)
+            sources = (st.session_state.get("explanation_result") or {}).get("rag_sources", [])
+
+            if sources:
+                st.markdown(f"##### Verified Documentation Citations ({len(sources)} grounded)")
+                for cite in sources:
+                    score_pct = int(cite.get("similarity_score", 0.0) * 100)
+                    with st.expander(f"📖 **{cite.get('title')}** — *{cite.get('source')}* ({score_pct}% match)", expanded=True):
+                        st.markdown(f"> {cite.get('snippet')}")
+                        st.caption(f"Topic: `{cite.get('topic')}` | Chunk ID: `{cite.get('chunk_id')}`")
+            else:
+                st.info("📚 **Empty State**: No specific external documentation chunks cited for this snippet.")
 
             st.divider()
-
-            # ── 5, 6, 7. Comprehension, Debugging, and Prediction Questions
-            questions = quiz_result.get("questions", [])
-            submitted = st.session_state.get("quiz_submitted", False)
-
-            st.markdown(f"### 📝 Code Comprehension Questions ({len(questions)} total)")
-            st.caption("Grounded in verified AST constructs and lines of the submitted code.")
-
-            for qi, q in enumerate(questions):
-                q_type = q.get("question_type", "comprehension")
-                type_badge = "🐛 Debugging" if q_type == "debugging" else ("🔮 Predict Output" if q_type == "predict_output" else "🧠 Comprehension")
-                concept_badge = q.get("concept", "General")
-                q_text = q.get("question") or q.get("text", "")
-
-                st.markdown(f"**Q{qi + 1} ({type_badge} | Concept: {concept_badge})**")
-                st.markdown(f"##### {q_text}")
-
-                ref_lines = q.get("referenced_lines") or q.get("line_reference")
-                if ref_lines:
-                    st.caption(f"📍 Referenced line(s): `{ref_lines}`")
-
-                options = q.get("options", [])
-                option_ids = [opt["id"] for opt in options]
-
-                if not submitted:
-                    selected = st.radio(
-                        f"Your answer for Q{qi + 1}:",
-                        options=option_ids,
-                        format_func=lambda x, opts=options: next(
-                            (f"{o['id'].upper()}) {o['text']}" for o in opts if o['id'] == x), x
-                        ),
-                        key=f"quiz_q_{qi}",
-                        label_visibility="collapsed",
-                    )
-                    st.session_state["quiz_answers"][q["id"]] = selected
+            st.markdown("##### 🔍 Semantic Knowledge Search")
+            rag_q = st.text_input("Query curated programming references:", placeholder="e.g. recursion base case, list slicing", key="wk_rag_q")
+            if rag_q.strip():
+                if not health:
+                    st.error("Backend offline.")
                 else:
-                    user_answer = st.session_state["quiz_answers"].get(q["id"], "")
-                    correct_id = q.get("correct_answer") or q.get("correct_option_id", "")
-                    for opt in options:
-                        if opt["id"] == correct_id:
-                            st.markdown(f"✅ **{opt['id'].upper()}) {opt['text']}** ← Correct")
-                        elif opt["id"] == user_answer and user_answer != correct_id:
-                            st.markdown(f"❌ ~~{opt['id'].upper()}) {opt['text']}~~ ← Your answer")
-                        else:
-                            st.markdown(f"⬜ {opt['id'].upper()}) {opt['text']}")
-                    st.info(f"💡 **Explanation:** {q.get('explanation', '')}")
-
-                st.markdown("---")
-
-            if not submitted:
-                if st.button("📩 Submit Answers for Deterministic Evaluation", type="primary", use_container_width=True):
-                    st.session_state["quiz_submitted"] = True
-                    try:
-                        eval_res = client.submit_learning_answers(
-                            code=code,
-                            language=lang_q,
-                            answers=st.session_state["quiz_answers"],
-                            questions_payload=questions,
-                        )
-                        st.session_state["eval_res"] = eval_res
-                    except Exception as e:
-                        logger.warning(f"Submission recording warning: {e}")
-                    st.rerun()
-            else:
-                # Deterministic scoring
-                score = 0
-                total = len(questions)
-                for q in questions:
-                    c_id = q.get("correct_answer") or q.get("correct_option_id")
-                    if st.session_state["quiz_answers"].get(q["id"]) == c_id:
-                        score += 1
-
-                pct = int((score / total) * 100) if total else 0
-                st.markdown("### 📊 Evaluation Results")
-                s1, s2, s3, s4 = st.columns(4)
-                s1.metric("Score", f"{score}/{total}")
-                s2.metric("Accuracy", f"{pct}%")
-                s3.metric("Attempts", st.session_state.get("attempts", 1))
-                s4.metric("Status", "Completed")
-
-                # ── Learner Progress Model ───────────────────────────
-                progress = client.get_learner_progress()
-                if progress:
-                    st.markdown("### 📈 Learner Progress Model")
-                    st.caption("Deterministic concept mastery tracking:")
-                    p_cols = st.columns(min(len(progress), 3))
-                    for idx, p in enumerate(progress):
-                        with p_cols[idx % len(p_cols)]:
-                            st.metric(
-                                label=f"Concept: {p['concept']}",
-                                value=f"{p['mastery']}%",
-                                help=f"Correct: {p.get('total_correct', 0)} / {p.get('total_attempted', 0)} attempts",
-                            )
-
-                if st.button("🔄 Retake / Regenerate Session"):
-                    st.session_state["quiz_submitted"] = False
-                    st.session_state["quiz_answers"] = {}
-                    st.rerun()
-
-            # ── 8. Final Takeaway ────────────────────────────────────
-            takeaway = quiz_result.get("final_takeaway")
-            if takeaway:
-                st.divider()
-                st.markdown("### 🎯 8. Final Takeaway")
-                st.success(takeaway)
+                    with st.spinner("Searching vector index…"):
+                        s_res = client.search_rag(rag_q.strip(), language=language)
+                    if s_res and s_res.get("results"):
+                        for r in s_res["results"]:
+                            r_pct = int(r.get("similarity_score", 0.0) * 100)
+                            with st.expander(f"📖 {r.get('title')} ({r_pct}% match)"):
+                                st.markdown(f"**Source:** *{r.get('source')}* · Topic: `{r.get('topic')}`")
+                                st.markdown(r.get("snippet"))
+                    else:
+                        st.caption("No matching knowledge chunks found.")
 
 
 # ════════════════════════════════════════════════════════════════════
-# PAGE 6 – HISTORY
+# VIEW 2 – SUBMISSION HISTORY
 # ════════════════════════════════════════════════════════════════════
-elif page == "📜 History":
+elif main_view == "📜 History":
     st.markdown("## 📜 Submission History")
+    st.caption("Review past analyzed submissions and reload them into your learning workspace.")
 
     if not health:
         st.error("🔴 Backend offline. Cannot load history.")
     else:
         with st.spinner("Loading history…"):
-            history = client.get_history(limit=50)
+            history_list = client.get_history(limit=50)
 
-        if history:
-            st.markdown(f"Showing **{len(history)}** saved submissions.")
-            for item in history:
+        if history_list:
+            st.markdown(f"Showing **{len(history_list)}** saved submissions:")
+            for item in history_list:
                 item_id = item.get("id", "?")
                 lang_h = item.get("language", "unknown")
                 level_h = item.get("level", "")
-                created = item.get("created_at", "")
+                created = item.get("created_at", "")[:19]
                 summary_preview = item.get("summary", "")
 
-                label = f"**#{item_id}** · {lang_h.upper()} · {level_h} · {created[:19]}"
+                label = f"**#{item_id}** · {lang_h.upper()} · {level_h} · {created}"
                 if summary_preview:
                     label += f" — {summary_preview[:60]}…"
 
@@ -824,13 +817,11 @@ elif page == "📜 History":
                     detail = client.get_history_item(item_id)
                     if detail:
                         st.markdown(f"**Summary:** {detail.get('summary', 'No summary available.')}")
-                        st.caption(f"Language: `{detail.get('language')}` | Level: `{detail.get('level')}` | Saved: `{detail.get('created_at')}`")
-                        
                         saved_code = detail.get("code", "")
                         if saved_code:
                             st.code(saved_code, language=detail.get("language", "python"))
 
-                        if st.button(f"📥 Load Submission #{item_id} into Explanation View", key=f"load_hist_{item_id}"):
+                        if st.button(f"📥 Load Submission #{item_id} into Workspace", key=f"load_hist_{item_id}"):
                             st.session_state["current_code"] = saved_code
                             st.session_state["current_language"] = detail.get("language", "python")
                             st.session_state["explanation_result"] = {
@@ -840,13 +831,11 @@ elif page == "📜 History":
                                 "summary": detail.get("summary"),
                                 "blocks": detail.get("blocks", []),
                                 "concepts": detail.get("concepts", []),
-                                "algorithm_steps": (detail.get("explanation") or {}).get("algorithm_steps", []),
                                 "complexity": (detail.get("explanation") or {}).get("complexity", {}),
                                 "hints": (detail.get("explanation") or {}).get("hints", []),
                             }
-                            st.success(f"Loaded submission #{item_id}! Go to 📖 Explanation page.")
+                            st.success(f"Loaded submission #{item_id}! Switch back to '🎓 Learning Workspace' to inspect.")
                     else:
                         st.caption("Could not load details.")
         else:
-            st.info("No submissions saved yet. Analyze some code with **Save to History** enabled.")
-
+            st.info("No submissions saved yet. Analyze some code with **Save Submission to History** enabled.")

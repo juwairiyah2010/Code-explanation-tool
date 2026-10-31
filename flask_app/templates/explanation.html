@@ -5,6 +5,10 @@
 
 {% if result %}
 <div class="card bg-dark border-secondary mb-4">
+    <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+        <span class="badge bg-primary bg-opacity-25 border border-primary text-primary px-3 py-1">🤖 DATA SOURCE: AI-Generated Content (Grounded)</span>
+        <span class="text-muted small">Language: <code class="text-info">{{ result.language }}</code> | Level: <code class="text-info">{{ result.level }}</code></span>
+    </div>
     <div class="card-body">
         <h5 class="card-title text-primary">Summary</h5>
         <p class="card-text">{{ result.summary | default('No summary available.') }}</p>
@@ -69,6 +73,9 @@
 {% endif %}
 
 {% if result.ast_analysis %}
+<div class="d-flex align-items-center mb-3">
+    <span class="badge bg-success bg-opacity-25 border border-success text-success px-3 py-1">🛡️ DATA SOURCE: Deterministic Static Analysis (AST Construct Engine)</span>
+</div>
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card bg-dark border-secondary text-center">
@@ -120,6 +127,9 @@
 <hr class="border-secondary my-4">
 
 {% if result.rag_sources %}
+<div class="d-flex align-items-center mb-2">
+    <span class="badge bg-info bg-opacity-25 border border-info text-info px-3 py-1">📖 DATA SOURCE: Retrieved Verified Documentation (Vector KB)</span>
+</div>
 <h3 class="mb-3">📚 Grounded Knowledge & Source Citations</h3>
 <p class="text-muted"><small>This explanation is verified and grounded against curated programming reference documentation:</small></p>
 <div class="accordion accordion-flush bg-dark mb-4" id="ragAccordion">

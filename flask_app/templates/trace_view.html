@@ -20,6 +20,9 @@
 </div>
 
 {% if trace_result %}
+    <div class="mb-3">
+        <span class="badge bg-warning bg-opacity-25 border border-warning text-warning px-3 py-1">⚙️ DATA SOURCE: Deterministic Execution Results (Subprocess Sandbox)</span>
+    </div>
     {% if trace_result.error %}
     <div class="alert alert-danger bg-dark border-danger text-danger">
         ⚠️ Trace error: {{ trace_result.error }}
