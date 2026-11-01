@@ -1,6 +1,13 @@
 import os
+import sys
+from pathlib import Path
 from typing import Any
 import httpx
+
+_ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
+
 from backend.config import get_settings
 
 settings = get_settings()

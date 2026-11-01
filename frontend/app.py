@@ -12,8 +12,21 @@ Presents a clean, streamlined learning workspace focused strictly on:
 9. View useful submission history
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path regardless of execution directory
+_ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
+
 import streamlit as st
-from frontend.utils.api_client import APIClient
+
+try:
+    from frontend.utils.api_client import APIClient
+except ModuleNotFoundError:
+    from utils.api_client import APIClient
 
 # ── Page Configuration ────────────────────────────────────────────────
 st.set_page_config(
@@ -410,6 +423,10 @@ if "show_auth_view" not in st.session_state:
     st.session_state["show_auth_view"] = False
 if "auth_notice" not in st.session_state:
     st.session_state["auth_notice"] = None
+if "sample_selector" not in st.session_state:
+    st.session_state["sample_selector"] = "-- Custom Code --"
+if "workspace_code_area" not in st.session_state:
+    st.session_state["workspace_code_area"] = PYTHON_SAMPLES.get("Basic Function & Loops", "")
 
 client = APIClient()
 if st.session_state.get("user") and st.session_state["user"].get("token"):
