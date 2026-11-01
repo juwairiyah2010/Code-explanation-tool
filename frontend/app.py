@@ -397,6 +397,8 @@ if "quiz_result" not in st.session_state:
     st.session_state["quiz_result"] = None
 if "quiz_answers" not in st.session_state:
     st.session_state["quiz_answers"] = {}
+if "quiz_user_answers" not in st.session_state:
+    st.session_state["quiz_user_answers"] = {}
 if "quiz_submitted" not in st.session_state:
     st.session_state["quiz_submitted"] = False
 if "quiz_current_index" not in st.session_state:
@@ -769,6 +771,7 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
                         st.session_state["quiz_result"] = quiz_res
                         st.session_state["quiz_submitted"] = False
                         st.session_state["quiz_answers"] = {}
+                        st.session_state["quiz_user_answers"] = {}
                         st.session_state["quiz_current_index"] = 0
                         st.session_state["quiz_question_answered"] = False
                         st.session_state["quiz_completed"] = False
@@ -783,10 +786,20 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
     # ─────────────────────────────────────────────────────────────────
     with col_results:
         expl_res = st.session_state.get("explanation_result")
+        resolved_current_lang = expl_res.get("language") if expl_res else st.session_state.get("selected_language", "python")
 
-        # If no code has been analyzed yet, show clean welcoming guide
-        if not expl_res:
-            st.markdown("""
+        tab_expl, tab_trace, tab_ast, tab_quiz, tab_docs = st.tabs([
+            "📖 Explanation",
+            "⚡ Execution & Flow",
+            "🛡️ Static Analysis",
+            "🎓 Quiz & Practice",
+            "📚 Reference Docs",
+        ])
+
+        # ── 5. EXPLANATION PANEL (Interactive Layered Design) ─────
+        with tab_expl:
+            if not expl_res:
+                st.markdown("""
 <div class="welcome-card">
     <h3>🚀 Welcome to Code Lore</h3>
     <p style="color: var(--text-secondary); margin-bottom: 16px;">
@@ -801,17 +814,7 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
     </ul>
 </div>
 """, unsafe_allow_html=True)
-        else:
-            tab_expl, tab_trace, tab_ast, tab_quiz, tab_docs = st.tabs([
-                "📖 Explanation",
-                "⚡ Execution & Flow",
-                "🛡️ Static Analysis",
-                "🎓 Quiz & Practice",
-                "📚 Reference Docs",
-            ])
-
-            # ── 5. EXPLANATION PANEL (Interactive Layered Design) ─────
-            with tab_expl:
+            else:
                 st.markdown('<span class="prov-badge ai">🤖 AI-Generated · Verified Grounded</span>', unsafe_allow_html=True)
 
                 code_lines = (code_input or "").splitlines()
@@ -1077,7 +1080,15 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
                 trace_data = st.session_state.get("trace_result")
 
                 if not trace_data:
-                    st.info("ℹ️ Interactive runtime execution is supported for Python. For JavaScript, review the Static Analysis panel.")
+                    st.info("ℹ️ Step through execution frames, watch variables evolve in memory, and view control flowcharts.")
+                    if st.button("⚡ Run Execution Trace for Current Code", type="primary", use_container_width=True, key="btn_trace_standalone"):
+                        with st.spinner("Executing sandboxed runtime trace..."):
+                            try:
+                                trace_res = client.trace_code(code_input, language="python", generate_flowchart=True)
+                                st.session_state["trace_result"] = trace_res
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Execution trace error: {e}")
                 else:
                     if trace_data.get("error"):
                         st.error(f"⚠️ Trace Error: {trace_data['error']}")
@@ -1131,9 +1142,19 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
             # ── 7. STATIC ANALYSIS PANEL ──────────────────────────────
             with tab_ast:
                 st.markdown('<span class="prov-badge ast">🛡️ Deterministic AST Engine</span>', unsafe_allow_html=True)
-                ast_data = st.session_state.get("ast_result") or (expl_res.get("ast_analysis") or {})
+                ast_data = st.session_state.get("ast_result") or ((expl_res.get("ast_analysis") if expl_res else None) or {})
 
-                if ast_data:
+                if not ast_data:
+                    st.info("ℹ️ Deterministic AST analysis and cyclomatic complexity metrics are ready to inspect.")
+                    if st.button("🛡️ Run Static Analysis for Current Code", type="primary", use_container_width=True, key="btn_ast_standalone"):
+                        with st.spinner("Analyzing code syntax tree..."):
+                            try:
+                                a_res = client.analyze_ast(code_input, resolved_current_lang)
+                                st.session_state["ast_result"] = a_res
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Static analysis error: {e}")
+                else:
                     m_c1, m_c2, m_c3, m_c4 = st.columns(4)
                     m_c1.metric("Complexity", ast_data.get("complexity_score", 1))
                     m_c2.metric("Max Nesting", ast_data.get("max_nesting_depth", 0))
@@ -1177,16 +1198,59 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
             # ── 8. QUIZ & PRACTICE PANEL (Interactive Learning Checkpoint) ──
             with tab_quiz:
                 st.markdown('<span class="prov-badge quiz">🎓 Interactive Learning Checkpoint</span>', unsafe_allow_html=True)
+
+                if "quiz_user_answers" not in st.session_state or not isinstance(st.session_state["quiz_user_answers"], dict):
+                    st.session_state["quiz_user_answers"] = {}
+
                 quiz_data = st.session_state.get("quiz_result")
 
                 if not quiz_data:
-                    st.info("ℹ️ Interactive quiz is being synthesized or not available for this snippet. Click **✨ Analyze Code** to generate questions.")
+                    st.markdown("""
+<div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+    <h4 style="margin: 0 0 8px 0; color: #a5b4fc;">🎯 Practice & Test Your Understanding</h4>
+    <p style="margin: 0; color: var(--text-secondary); font-size: 0.95rem;">
+        Generate an interactive checkpoint based on your code snippet, with immediate feedback, concept tracking, and mastery analytics.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+                    if st.button("🎯 Generate Practice Quiz for Current Code", type="primary", use_container_width=True, key="btn_gen_quiz_standalone"):
+                        with st.spinner("Synthesizing grounded comprehension questions..."):
+                            try:
+                                quiz_res = client.generate_quiz(code_input, resolved_current_lang, workflow="learning")
+                                if quiz_res and quiz_res.get("questions"):
+                                    st.session_state["quiz_result"] = quiz_res
+                                    st.session_state["quiz_submitted"] = False
+                                    st.session_state["quiz_answers"] = {}
+                                    st.session_state["quiz_user_answers"] = {}
+                                    st.session_state["quiz_current_index"] = 0
+                                    st.session_state["quiz_question_answered"] = False
+                                    st.session_state["quiz_completed"] = False
+                                    st.session_state["quiz_history_results"] = []
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to generate questions. Ensure backend is active.")
+                            except Exception as e:
+                                st.error(f"Error generating quiz: {e}")
                 else:
                     q_list = quiz_data.get("questions", [])
                     total_q = len(q_list)
 
                     if not q_list:
                         st.info("ℹ️ No specific checkpoint questions generated for this snippet.")
+                        if st.button("🎯 Generate New Quiz", type="primary", use_container_width=True, key="btn_regen_empty_quiz"):
+                            with st.spinner("Generating quiz..."):
+                                try:
+                                    quiz_res = client.generate_quiz(code_input, resolved_current_lang, workflow="learning")
+                                    if quiz_res and quiz_res.get("questions"):
+                                        st.session_state["quiz_result"] = quiz_res
+                                        st.session_state["quiz_user_answers"] = {}
+                                        st.session_state["quiz_current_index"] = 0
+                                        st.session_state["quiz_question_answered"] = False
+                                        st.session_state["quiz_completed"] = False
+                                        st.session_state["quiz_history_results"] = []
+                                        st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
                     elif st.session_state.get("quiz_completed", False):
                         # ── Checkpoint Summary Screen ─────────────────────────
                         st.markdown("### 🎯 Learning Checkpoint Complete!")
@@ -1234,14 +1298,30 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
                         if quiz_data.get("final_takeaway"):
                             st.markdown(f"> **🎯 Final Takeaway:** {quiz_data['final_takeaway']}")
 
-                        # Retake Checkpoint
-                        if st.button("🔄 Retake Checkpoint", type="primary", use_container_width=True, key="retake_checkpoint_btn"):
-                            st.session_state["quiz_current_index"] = 0
-                            st.session_state["quiz_question_answered"] = False
-                            st.session_state["quiz_completed"] = False
-                            st.session_state["quiz_user_answers"] = {}
-                            st.session_state["quiz_history_results"] = []
-                            st.rerun()
+                        col_q_act1, col_q_act2 = st.columns(2)
+                        with col_q_act1:
+                            if st.button("🔄 Retake Checkpoint", type="secondary", use_container_width=True, key="retake_checkpoint_btn"):
+                                st.session_state["quiz_current_index"] = 0
+                                st.session_state["quiz_question_answered"] = False
+                                st.session_state["quiz_completed"] = False
+                                st.session_state["quiz_user_answers"] = {}
+                                st.session_state["quiz_history_results"] = []
+                                st.rerun()
+                        with col_q_act2:
+                            if st.button("✨ Generate New Quiz", type="primary", use_container_width=True, key="gen_new_quiz_btn"):
+                                with st.spinner("Synthesizing fresh questions..."):
+                                    try:
+                                        quiz_res = client.generate_quiz(code_input, resolved_current_lang, workflow="learning")
+                                        if quiz_res and quiz_res.get("questions"):
+                                            st.session_state["quiz_result"] = quiz_res
+                                            st.session_state["quiz_current_index"] = 0
+                                            st.session_state["quiz_question_answered"] = False
+                                            st.session_state["quiz_completed"] = False
+                                            st.session_state["quiz_user_answers"] = {}
+                                            st.session_state["quiz_history_results"] = []
+                                            st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error generating new quiz: {e}")
 
                     else:
                         # ── Single Question Active Checkpoint ─────────────────
@@ -1293,7 +1373,7 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
                             )
 
                             if st.button("Submit Answer", type="primary", use_container_width=True, key=f"btn_sub_{q_id}"):
-                                is_correct = (chosen == corr)
+                                is_correct = (str(chosen).strip().upper() == str(corr).strip().upper())
                                 st.session_state["quiz_user_answers"][q_id] = chosen
                                 st.session_state["quiz_question_answered"] = True
                                 st.session_state["quiz_history_results"].append({
@@ -1311,12 +1391,13 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
                         else:
                             # Immediate Feedback Screen
                             user_ans = st.session_state["quiz_user_answers"].get(q_id, "")
-                            is_correct = (user_ans == corr)
+                            is_correct = (str(user_ans).strip().upper() == str(corr).strip().upper())
 
                             for o in opts:
-                                if o["id"] == corr:
+                                opt_val = str(o["id"]).strip().upper()
+                                if opt_val == str(corr).strip().upper():
                                     st.markdown(f"✅ **{o['id']}) {o['text']}** *(Correct Answer)*")
-                                elif o["id"] == user_ans and not is_correct:
+                                elif opt_val == str(user_ans).strip().upper() and not is_correct:
                                     st.markdown(f"❌ ~~{o['id']}) {o['text']}~~ *(Your Selection)*")
                                 else:
                                     st.markdown(f"⬜ {o['id']}) {o['text']}")
@@ -1360,32 +1441,61 @@ elif st.session_state["nav_view"] == "🎓 Workspace":
             # ── 9. REFERENCE DOCS PANEL ───────────────────────────────
             with tab_docs:
                 st.markdown('<span class="prov-badge rag">📚 Verified Knowledge Base</span>', unsafe_allow_html=True)
-                sources = expl_res.get("rag_sources", [])
+                sources = (expl_res.get("rag_sources", []) if expl_res else [])
 
                 if sources:
-                    st.markdown(f"##### Grounded Documentation Citations ({len(sources)})")
+                    st.markdown(f"##### 🎯 Grounded Citations for Current Code ({len(sources)})")
                     for cite in sources:
                         score_pct = int(cite.get("similarity_score", 0.0) * 100)
                         with st.expander(f"📖 **{cite.get('title')}** — *{cite.get('source')}* ({score_pct}% match)", expanded=True):
                             st.markdown(f"> {cite.get('snippet')}")
                             st.caption(f"Topic: `{cite.get('topic')}` | Chunk ID: `{cite.get('chunk_id')}`")
-                else:
-                    st.info("ℹ️ No external reference citations required for this self-contained snippet.")
+                    st.divider()
 
-                st.divider()
                 st.markdown("##### 🔍 Search Reference Documentation")
-                rag_q = st.text_input("Query programming concepts:", placeholder="e.g. recursion, list slicing, error handling", key="rag_search_input")
+                c1, c2, c3, c4 = st.columns(4)
+                if c1.button("📌 Recursion", key="qchip_rec", use_container_width=True):
+                    st.session_state["rag_query_val"] = "recursion"
+                if c2.button("⏱️ Complexity", key="qchip_comp", use_container_width=True):
+                    st.session_state["rag_query_val"] = "time complexity big-o"
+                if c3.button("📦 Data Structures", key="qchip_ds", use_container_width=True):
+                    st.session_state["rag_query_val"] = "data structures lists tuples sets"
+                if c4.button("⚠️ Errors", key="qchip_err", use_container_width=True):
+                    st.session_state["rag_query_val"] = "common errors off-by-one exceptions"
+
+                default_query = st.session_state.get("rag_query_val", "")
+                rag_q = st.text_input("Query programming concepts:", value=default_query, placeholder="e.g. recursion, list slicing, error handling", key="rag_search_input")
                 if rag_q.strip():
                     with st.spinner("Searching references…"):
-                        s_res = client.search_rag(rag_q.strip(), language=st.session_state["selected_language"])
+                        s_res = client.search_rag(rag_q.strip(), language=resolved_current_lang)
                     if s_res and s_res.get("results"):
                         for r in s_res["results"]:
                             r_pct = int(r.get("similarity_score", 0.0) * 100)
-                            with st.expander(f"📖 {r.get('title')} ({r_pct}% match)"):
+                            with st.expander(f"📖 {r.get('title')} ({r_pct}% match)", expanded=True):
                                 st.markdown(f"**Source:** *{r.get('source')}* · Topic: `{r.get('topic')}`")
                                 st.markdown(r.get("snippet"))
                     else:
-                        st.caption("No matching documentation found.")
+                        st.caption("No matching documentation found for this search term.")
+
+                st.divider()
+                st.markdown("##### 📚 Official Knowledge Base Library")
+                kb_options = {
+                    "🐍 Python Core & Semantics": "python_core.md",
+                    "⚡ JavaScript Core & Async": "javascript_core.md",
+                    "🧠 Computer Science Concepts": "programming_concepts.md",
+                    "⚠️ Common Errors & Traps": "common_errors.md",
+                    "⏱️ Algorithms & Complexity": "algorithms_and_complexity.md",
+                }
+                selected_kb = st.selectbox("Browse Official Reference Guide:", list(kb_options.keys()), key="kb_guide_sel")
+                kb_file = kb_options[selected_kb]
+                kb_path = _ROOT_DIR / "data" / "knowledge_base" / kb_file
+                if kb_path.exists():
+                    try:
+                        content = kb_path.read_text(encoding="utf-8")
+                        with st.expander(f"📖 Open: {selected_kb}", expanded=True):
+                            st.markdown(content)
+                    except Exception as e:
+                        st.warning(f"Could not load guide: {e}")
 
 
 # ════════════════════════════════════════════════════════════════════
