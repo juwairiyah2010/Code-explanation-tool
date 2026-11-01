@@ -116,9 +116,10 @@ Code Lore is fully configured for reproducible, zero-downtime deployment across 
   ```bash
   python scripts/init_db.py     # Bootstraps schema & populates knowledge chunks
   ```
-- **Docker & Docker Compose**: Multi-stage build with non-root security isolation and health checks.
+- **Native Production Execution**: Run high-performance multi-worker Uvicorn backend with Streamlit frontend.
   ```bash
-  docker compose up -d --build
+  python -m uvicorn backend.main:app --workers 2 --host 0.0.0.0 --port 8000
+  streamlit run frontend/app.py --server.port 8501
   ```
 - **Health Checks**:
   - Root: `GET http://localhost:8000/health`

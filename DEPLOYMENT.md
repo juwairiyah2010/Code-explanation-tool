@@ -11,7 +11,7 @@ This guide describes how to configure, bootstrap, and deploy **Code Lore** acros
 4. [Database Setup](#database-setup)
 5. [Backend Startup](#backend-startup)
 6. [Frontend Startup](#frontend-startup)
-7. [Production Startup (Docker & Compose)](#production-startup-docker--compose)
+7. [Production Startup](#production-startup)
 8. [Health Check & Monitoring](#health-check--monitoring)
 9. [Troubleshooting](#troubleshooting)
 
@@ -32,7 +32,6 @@ Code Lore is structured as a decoupled web application:
 ### Prerequisites
 - Python 3.11+
 - Git
-- (Optional) Docker & Docker Compose (v2+)
 
 ### Step-by-Step Installation
 1. **Clone the repository**:
@@ -151,46 +150,36 @@ python3 -m streamlit run frontend/app.py --server.port 8501 --server.address 0.0
 
 ---
 
-## 🐳 Production Startup (Docker & Compose)
+## 🚀 Production Startup
 
-Code Lore includes a containerized production setup using multi-stage builds and non-root process isolation.
+For production deployments on cloud virtual machines, VPS, or PaaS providers (e.g. Ubuntu / Debian / RHEL):
 
-### 1. Starting with Docker Compose (Recommended)
-Launch both the backend and Streamlit frontend in an isolated bridge network with health monitoring:
+### 1. Database Initialization
+Ensure database tables, WAL journal mode, and vector knowledge base chunks are initialized:
 ```bash
-docker compose up -d --build
+python scripts/init_db.py
 ```
 
-To view real-time logs from both services:
+### 2. Multi-Worker Backend Process
+Run Uvicorn with multiple worker processes for high concurrency and structured JSON logging:
 ```bash
-docker compose logs -f
+export ENVIRONMENT=production
+export LOG_FORMAT=json
+python -m uvicorn backend.main:app \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --workers 2 \
+  --no-access-log
 ```
 
-To stop containers gracefully:
+### 3. Frontend Production Service
+Run Streamlit in headless mode bound to the external interface:
 ```bash
-docker compose down
+streamlit run frontend/app.py \
+  --server.port 8501 \
+  --server.address 0.0.0.0 \
+  --server.headless true
 ```
-
-### 2. Standalone Docker Build & Run
-If deploying to container runtimes like AWS ECS, Google Cloud Run, or Kubernetes:
-
-```bash
-# Build production container image
-docker build -t codelore:latest .
-
-# Run container with persistent data volume
-docker run -d \
-  --name codelore-backend \
-  -p 8000:8000 \
-  -e ENVIRONMENT=production \
-  -e LOG_FORMAT=json \
-  -v $(pwd)/data:/app/data \
-  codelore:latest
-```
-
-The container entrypoint (`docker-entrypoint.sh`) automatically:
-1. Runs `scripts/init_db.py` to ensure schema tables, WAL mode, and indexes are initialized and seeds knowledge documentation if empty.
-2. Launches Uvicorn with configured workers (`WORKERS`) and bind addresses (`BACKEND_HOST`, `BACKEND_PORT`).
 
 ---
 
@@ -241,11 +230,11 @@ curl -f http://localhost:8000/health
     DATABASE_URL=postgresql://user:password@db-host:5432/codelore
     ```
 
-### 3. Frontend Cannot Reach Backend
+### 2. Frontend Cannot Reach Backend
 - **Symptom**: Red warning in Streamlit: *"Cannot connect to backend at http://127.0.0.1:8000/api/v1"*.
 - **Solution**:
-  - When running inside Docker, the frontend cannot connect to `127.0.0.1` because each container has its own loopback interface.
-  - Set `BACKEND_URL=http://backend:8000/api/v1` in `docker-compose.yml` or your container environment.
+  - Verify that the backend service is running and healthy: `curl -f http://127.0.0.1:8000/api/v1/health`
+  - If hosting backend and frontend on separate hosts/ports, set `BACKEND_URL=http://your-backend-host:8000/api/v1` in your environment or `.env`.
 
 ### 4. CORS Errors on Web Clients
 - **Symptom**: Browser blocks fetch requests with CORS errors.
