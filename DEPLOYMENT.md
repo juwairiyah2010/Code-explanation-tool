@@ -47,14 +47,9 @@ Code Lore is structured as a decoupled web application:
    ```
 
 3. **Install dependencies**:
-   - For development and testing:
-     ```bash
-     pip install -r requirements.txt
-     ```
-   - For a lean production runtime:
-     ```bash
-     pip install -r requirements-prod.txt
-     ```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 4. **Initialize environment configuration**:
    ```bash
